@@ -1,0 +1,78 @@
+## ---------------------------------------------------------------
+## .NET
+## ---------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.user
+*.suo
+*.userprefs
+*.userosscache
+*.sln.docstates
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+.idea/
+*.rsuser
+*.dbmdl
+*.jfm
+
+## Test / Coverage
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+
+## ---------------------------------------------------------------
+## Node / Vue / Vite
+## ---------------------------------------------------------------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+## ---------------------------------------------------------------
+## OS
+## ---------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+## ---------------------------------------------------------------
+#Customer NestFlow 專案排除規則
+## ---------------------------------------------------------------
+
+#Customer 機密設定：實際金鑰只存在本機，一律不進版控
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Local.json
+.env
+.env.*
+!.env.example
+
+#Customer 允許範本檔進版控，供他人知道要填哪些欄位
+!appsettings.Development.json.example
+
+#Customer 憑證與金鑰檔
+*.pfx
+*.p12
+*.key
+*.pem
+
+#Customer 本機 SQL Server 資料磁碟區
+.docker/
