@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using NestFlow_Backend.Common;
 using NestFlow_Backend.Filters;
 using NestFlow_Backend.Helpers;
+using NestFlow_Backend.Models.ParamModels;
 using NestFlow_Backend.Models.ViewModels;
 using NestFlow_Backend.Services;
 using SessionOptions = NestFlow_Backend.Common.SessionOptions;
@@ -109,6 +110,21 @@ public class AuthController : ControllerBase
         var dto = await _authService.GetCurrentUserAsync(_currentUser.RequireUserId(), cancellationToken);
 
         return Ok(_mapper.Map<CurrentUserViewModel>(dto));
+    }
+
+    /// <summary>更新使用者時區。資料仍以 UTC 保存，此設定只影響顯示與月份切分。</summary>
+    [HttpPut("me/timezone")]
+    [RequireSession]
+    public async Task<IActionResult> UpdateTimeZone(
+        [FromBody] UpdateTimeZoneParamModel param,
+        CancellationToken cancellationToken)
+    {
+        await _authService.UpdateTimeZoneAsync(
+            _currentUser.RequireUserId(),
+            param.TimeZone.Trim(),
+            cancellationToken);
+
+        return NoContent();
     }
 
     [HttpPost("logout")]

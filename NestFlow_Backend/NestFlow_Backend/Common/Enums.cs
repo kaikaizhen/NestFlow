@@ -55,3 +55,17 @@ public enum InvitationStatus
     Used,
     Expired,
 }
+
+/// <summary>記帳類型。</summary>
+public enum EntryType
+{
+    Expense,
+    Income,
+}
+
+/// <summary>記帳狀態。刪除採軟刪除，不從資料庫移除。</summary>
+public enum EntryStatus
+{
+    Active,
+    Deleted,
+}

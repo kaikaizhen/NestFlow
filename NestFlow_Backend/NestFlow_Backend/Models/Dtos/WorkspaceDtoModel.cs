@@ -48,5 +48,8 @@ public class CurrentUserDtoModel
 
     public Guid? DefaultWorkspaceId { get; set; }
 
+    /// <summary>使用者時區的 IANA 名稱，前端據此換算顯示時間與月份區間。</summary>
+    public string TimeZone { get; set; } = string.Empty;
+
     public bool IsLineLinked { get; set; }
 }

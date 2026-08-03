@@ -13,6 +13,11 @@ public class User
     /// <summary>LINE 訊息預設寫入的 Workspace。首次登入時指向自動建立的個人 Workspace。</summary>
     public Guid? DefaultWorkspaceId { get; set; }
 
+    /// <summary>
+    /// 使用者時區的 IANA 名稱。資料一律以 UTC 保存，顯示與月份切分由前端依此欄位換算。
+    /// </summary>
+    public string TimeZone { get; set; } = "Asia/Taipei";
+
     public UserStatus Status { get; set; } = UserStatus.Active;
 
     public DateTimeOffset CreatedAt { get; set; }

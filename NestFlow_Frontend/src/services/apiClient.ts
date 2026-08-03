@@ -65,6 +65,8 @@ export interface CurrentUser {
   displayName: string
   pictureUrl: string | null
   defaultWorkspaceId: string | null
+  /** IANA 時區名稱，前端據此換算顯示時間與月份區間。 */
+  timeZone: string
   isLineLinked: boolean
 }
 
@@ -91,6 +93,44 @@ export interface WorkspaceMember {
 export interface Invitation {
   code: string
   expiresAt: string
+}
+
+export type EntryType = 'expense' | 'income'
+
+export interface AccountEntry {
+  id: string
+  type: EntryType
+  amount: number
+  currency: string
+  category: string
+  note: string | null
+  occurredAt: string
+  createdByUserId: string
+  createdByDisplayName: string
+}
+
+export interface CurrencySummary {
+  currency: string
+  income: number
+  expense: number
+  balance: number
+}
+
+export interface Category {
+  code: string
+  label: string
+  type: EntryType
+}
+
+export interface SaveAccountEntryPayload {
+  workspaceId: string
+  type: EntryType
+  amount: number
+  currency: string
+  category: string
+  note: string | null
+  /** 帶時區的 ISO 字串，後端會轉為 UTC 保存。 */
+  occurredAt: string
 }
 
 // ---------------------------------------------------------------
@@ -151,4 +191,41 @@ export const api = {
 
   removeMember: (workspaceId: string, userId: string) =>
     request<void>(`/api/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' }),
+
+  updateTimeZone: (timeZone: string) =>
+    request<void>('/api/auth/me/timezone', {
+      method: 'PUT',
+      body: JSON.stringify({ timeZone }),
+    }),
+
+  listCategories: () => request<Category[]>('/api/account-entries/categories'),
+
+  listEntries: (workspaceId: string, fromUtc: string, toUtc: string, limit?: number) =>
+    request<AccountEntry[]>(
+      `/api/account-entries?workspaceId=${workspaceId}&from=${encodeURIComponent(fromUtc)}` +
+        `&to=${encodeURIComponent(toUtc)}${limit ? `&limit=${limit}` : ''}`,
+    ),
+
+  summarize: (workspaceId: string, fromUtc: string, toUtc: string) =>
+    request<CurrencySummary[]>(
+      `/api/account-entries/summary?workspaceId=${workspaceId}` +
+        `&from=${encodeURIComponent(fromUtc)}&to=${encodeURIComponent(toUtc)}`,
+    ),
+
+  getEntry: (entryId: string) => request<AccountEntry>(`/api/account-entries/${entryId}`),
+
+  createEntry: (payload: SaveAccountEntryPayload) =>
+    request<AccountEntry>('/api/account-entries', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateEntry: (entryId: string, payload: SaveAccountEntryPayload) =>
+    request<AccountEntry>(`/api/account-entries/${entryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteEntry: (entryId: string) =>
+    request<void>(`/api/account-entries/${entryId}`, { method: 'DELETE' }),
 }

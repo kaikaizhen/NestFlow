@@ -29,6 +29,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '記帳' },
   },
   {
+    path: '/ledger/new',
+    name: 'entry-create',
+    component: () => import('../views/ledger/EntryEditView.vue'),
+    meta: { title: '新增記帳' },
+  },
+  {
+    path: '/ledger/:entryId/edit',
+    name: 'entry-edit',
+    component: () => import('../views/ledger/EntryEditView.vue'),
+    meta: { title: '編輯記帳' },
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),
@@ -45,6 +57,12 @@ const routes: RouteRecordRaw[] = [
     name: 'workspace-members',
     component: () => import('../views/settings/MembersView.vue'),
     meta: { title: '家庭成員' },
+  },
+  {
+    path: '/settings/timezone',
+    name: 'timezone',
+    component: () => import('../views/settings/TimeZoneView.vue'),
+    meta: { title: '時區' },
   },
   {
     path: '/settings/join-family',

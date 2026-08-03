@@ -135,8 +135,24 @@ public class AuthService : IAuthService
             DisplayName = user.DisplayName,
             PictureUrl = user.PictureUrl,
             DefaultWorkspaceId = user.DefaultWorkspaceId,
+            TimeZone = user.TimeZone,
             IsLineLinked = identity is not null && identity.ChannelId != DevChannelId,
         };
+    }
+
+    public async Task UpdateTimeZoneAsync(Guid userId, string timeZone, CancellationToken cancellationToken)
+    {
+        var user = await _userRepository.GetByIdAsync(userId, cancellationToken)
+            ?? throw AppException.Unauthorized();
+
+        // 只接受作業系統認得的時區，避免存入無法解析的字串
+        if (!TimeZoneInfo.TryFindSystemTimeZoneById(timeZone, out _))
+        {
+            throw AppException.BadRequest("時區名稱無效。");
+        }
+
+        user.TimeZone = timeZone;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     public async Task LogoutAsync(string sessionToken, CancellationToken cancellationToken)
