@@ -56,5 +56,17 @@ services:
       sqlserver:
         condition: service_healthy
 
+  pwa:
+    build:
+      context: ./NestFlow_Frontend
+      args:
+        VITE_API_BASE_URL: "http://localhost:8080"
+    container_name: nestflow-pwa
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   nestflow-mssql-data:
