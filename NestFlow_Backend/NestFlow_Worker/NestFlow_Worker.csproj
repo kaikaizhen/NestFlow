@@ -10,4 +10,22 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- 共用實體、DbContext 與 LINE 用戶端，避免提醒邏輯出現第二份實作 -->
+    <ProjectReference Include="..\NestFlow_Backend\NestFlow_Backend.csproj" />
+  </ItemGroup>
+
+  <!--
+    被參考的 API 專案也有 appsettings.json，發佈時會與 Worker 自己的檔案撞路徑。
+    這裡只丟掉來自 API 專案的設定檔，Worker 仍使用自己的組態。
+  -->
+  <Target Name="ExcludeReferencedAppSettings" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish
+        Remove="@(ResolvedFileToPublish)"
+        Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('appsettings')) And $([System.String]::Copy('%(ResolvedFileToPublish.Identity)').Contains('NestFlow_Backend'))" />
+    </ItemGroup>
+  </Target>
+
 </Project>

@@ -62,6 +62,12 @@ services:
     container_name: nestflow-worker
     environment:
       DOTNET_ENVIRONMENT: Development
+      # 提醒 Worker 直接讀寫資料庫並呼叫 LINE Push，設定鍵名與 API 相同
+      ConnectionStrings__NestFlowDb: "Server=sqlserver,1433;Database=NestFlow;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True"
+      Encryption__Key: ${ENCRYPTION_KEY}
+      LineMessaging__ChannelId: ${LINE_MESSAGING_CHANNEL_ID:-}
+      LineMessaging__ChannelSecret: ${LINE_MESSAGING_CHANNEL_SECRET:-}
+      LineMessaging__ChannelAccessToken: ${LINE_MESSAGING_ACCESS_TOKEN:-}
     depends_on:
       sqlserver:
         condition: service_healthy

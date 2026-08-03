@@ -16,4 +16,7 @@ public static class GlobalConstants
 
     /// <summary>檢查外部相依的 Health Check 標籤。</summary>
     public const string ReadyTag = "ready";
+
+    /// <summary>開發登入建立的外部身分所屬 Channel。這種身分無法真正推播。</summary>
+    public const string DevChannelId = "dev-channel";
 }

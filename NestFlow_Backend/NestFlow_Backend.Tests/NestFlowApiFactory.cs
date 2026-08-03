@@ -4,7 +4,9 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NestFlow_Backend.Data;
+using NestFlow_Backend.Services.External;
 
 namespace NestFlow_Backend.Tests;
 
@@ -22,6 +24,12 @@ public class NestFlowApiFactory : WebApplicationFactory<Program>
 
     // 連線保持開啟，SQLite In-Memory 資料庫才不會在測試中途被釋放
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
+
+    /// <summary>測試不對外呼叫 LINE，改以此假用戶端記錄推播內容供斷言。</summary>
+    public FakeLineMessagingClient Messaging { get; } = new();
+
+    /// <summary>可前移的時鐘，讓提醒測試不必真的等到觸發時間。</summary>
+    public TestTimeProvider Time { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -44,6 +52,12 @@ public class NestFlowApiFactory : WebApplicationFactory<Program>
         {
             var descriptor = services.Single(d => d.ServiceType == typeof(DbContextOptions<NestFlowDbContext>));
             services.Remove(descriptor);
+
+            services.RemoveAll<ILineMessagingClient>();
+            services.AddSingleton<ILineMessagingClient>(Messaging);
+
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(Time);
 
             _connection.Open();
             services.AddDbContext<NestFlowDbContext>(options => options.UseSqlite(_connection));

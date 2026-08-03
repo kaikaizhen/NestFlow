@@ -1,4 +1,5 @@
-FROM mcr.microsoft.com/dotnet/runtime:8.0 AS base
+# Worker 參考了 Web SDK 的 NestFlow_Backend，執行時需要 ASP.NET Core 共用框架
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 USER $APP_UID
 WORKDIR /app
 
@@ -6,6 +7,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["NestFlow_Worker/NestFlow_Worker.csproj", "NestFlow_Worker/"]
+COPY ["NestFlow_Backend/NestFlow_Backend.csproj", "NestFlow_Backend/"]
 RUN dotnet restore "./NestFlow_Worker/NestFlow_Worker.csproj"
 COPY . .
 WORKDIR "/src/NestFlow_Worker"

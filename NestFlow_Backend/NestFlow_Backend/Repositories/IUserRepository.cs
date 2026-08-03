@@ -29,6 +29,12 @@ public interface IUserRepository
 
     Task<ExternalIdentity?> GetExternalIdentityAsync(Guid userId, IdentityProvider provider, CancellationToken cancellationToken);
 
+    /// <summary>列出使用者在該 Provider 下所有有效的外部身分，供推播挑選收件者。</summary>
+    Task<List<ExternalIdentity>> ListExternalIdentitiesAsync(
+        Guid userId,
+        IdentityProvider provider,
+        CancellationToken cancellationToken);
+
     /// <summary>判斷使用者是否已在指定 Channel 建立外部身分，用於顯示綁定狀態。</summary>
     Task<bool> HasExternalIdentityAsync(
         Guid userId,

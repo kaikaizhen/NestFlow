@@ -77,6 +77,19 @@ public enum CalendarEventStatus
     Deleted,
 }
 
+/// <summary>
+/// 提醒狀態。Sending 是 Worker 取件後的暫時狀態，
+/// 讓多個 Worker 同時掃描時同一筆提醒只會有一個取得。
+/// </summary>
+public enum ReminderStatus
+{
+    Pending,
+    Sending,
+    Sent,
+    Failed,
+    Cancelled,
+}
+
 /// <summary>待確認動作的類型。</summary>
 public enum PendingActionType
 {

@@ -12,8 +12,6 @@ namespace NestFlow_Backend.Services;
 
 public class AuthService : IAuthService
 {
-    private const string DevChannelId = "dev-channel";
-
     private const string BotInfoCacheKey = "line-bot-info";
 
     /// <summary>身分綁定碼的有效期。</summary>
@@ -99,7 +97,7 @@ public class AuthService : IAuthService
     {
         var user = await FindOrCreateUserAsync(
             IdentityProvider.Line,
-            DevChannelId,
+            GlobalConstants.DevChannelId,
             externalSubject,
             displayName,
             pictureUrl: null,
@@ -164,7 +162,7 @@ public class AuthService : IAuthService
             PictureUrl = user.PictureUrl,
             DefaultWorkspaceId = user.DefaultWorkspaceId,
             TimeZone = user.TimeZone,
-            IsLineLinked = identity is not null && identity.ChannelId != DevChannelId,
+            IsLineLinked = identity is not null && identity.ChannelId != GlobalConstants.DevChannelId,
             IsLineMessagingLinked = isMessagingLinked,
             IsLineMessagingConfigured = _messagingOptions.IsConfigured,
         };
