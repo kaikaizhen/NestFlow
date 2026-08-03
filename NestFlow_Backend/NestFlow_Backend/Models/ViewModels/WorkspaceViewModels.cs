@@ -45,5 +45,7 @@ public class CurrentUserViewModel
 
     public Guid? DefaultWorkspaceId { get; set; }
 
+    public string TimeZone { get; set; } = string.Empty;
+
     public bool IsLineLinked { get; set; }
 }

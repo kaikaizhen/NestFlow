@@ -18,5 +18,8 @@ public interface IAuthService
 
     Task<CurrentUserDtoModel> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>更新使用者時區。資料仍以 UTC 保存，此設定只影響顯示與月份切分。</summary>
+    Task UpdateTimeZoneAsync(Guid userId, string timeZone, CancellationToken cancellationToken);
+
     Task LogoutAsync(string sessionToken, CancellationToken cancellationToken);
 }

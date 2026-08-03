@@ -52,10 +52,12 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 builder.Services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
+builder.Services.AddScoped<IAccountEntryRepository, AccountEntryRepository>();
 
 // Service 層
 builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAccountEntryService, AccountEntryService>();
 
 // LINE Login 對外呼叫與 JWKS 快取
 builder.Services.AddHttpClient<ILineLoginClient, LineLoginClient>(client =>

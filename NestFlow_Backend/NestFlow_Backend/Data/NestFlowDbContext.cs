@@ -28,6 +28,8 @@ public class NestFlowDbContext : DbContext
 
     public DbSet<WorkspaceInvitation> WorkspaceInvitations => Set<WorkspaceInvitation>();
 
+    public DbSet<AccountEntry> AccountEntries => Set<AccountEntry>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

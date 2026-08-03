@@ -38,5 +38,10 @@ public static class TestClientExtensions
 
     public record MemberResponse(Guid UserId, string DisplayName, string MembershipType);
 
-    public record CurrentUserResponse(Guid Id, string DisplayName, Guid? DefaultWorkspaceId, bool IsLineLinked);
+    public record CurrentUserResponse(
+        Guid Id,
+        string DisplayName,
+        Guid? DefaultWorkspaceId,
+        string TimeZone,
+        bool IsLineLinked);
 }
