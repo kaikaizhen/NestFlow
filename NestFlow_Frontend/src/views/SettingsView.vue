@@ -106,29 +106,30 @@ onMounted(load)
         </template>
       </SettingsRow>
 
-      <SettingsRow
-        label="LINE 綁定"
-        :value="currentUser?.isLineLinked ? '已綁定' : '未綁定'"
-        :chevron="false"
-        :disabled="!currentUser?.isLineLinked"
-      >
-        <template #icon>
-          <svg
-            viewBox="0 0 24 24"
-            width="22"
-            height="22"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <path d="M8 10.5h8M8 14h5" />
-          </svg>
-        </template>
-      </SettingsRow>
+      <RouterLink class="link" :to="{ name: 'line-binding' }">
+        <SettingsRow
+          label="LINE 綁定"
+          :value="currentUser?.isLineMessagingLinked ? '已綁定' : '未綁定'"
+          :disabled="false"
+        >
+          <template #icon>
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M8 10.5h8M8 14h5" />
+            </svg>
+          </template>
+        </SettingsRow>
+      </RouterLink>
 
       <RouterLink class="link" :to="{ name: 'workspaces' }">
         <SettingsRow label="預設資料空間" :value="defaultWorkspaceName" :disabled="false">
