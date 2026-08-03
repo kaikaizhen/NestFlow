@@ -83,6 +83,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'LINE 綁定' },
   },
   {
+    path: '/settings/reminders',
+    name: 'reminders',
+    component: () => import('../views/settings/RemindersView.vue'),
+    meta: { title: '提醒通知' },
+  },
+  {
     path: '/settings/join-family',
     name: 'join-family',
     component: () => import('../views/settings/JoinFamilyView.vue'),

@@ -139,6 +139,26 @@ export interface SaveCalendarEventPayload {
   endAt: string
 }
 
+/** pending：等待發送｜sending：發送中｜sent：已發送｜failed：重試多次仍失敗 */
+export type ReminderStatus = 'pending' | 'sending' | 'sent' | 'failed'
+
+export interface Reminder {
+  id: string
+  content: string
+  triggerAt: string
+  status: ReminderStatus
+  retryCount: number
+  createdByUserId: string
+  createdByDisplayName: string
+}
+
+export interface SaveReminderPayload {
+  workspaceId: string
+  content: string
+  /** 帶時區的 ISO 字串，後端會轉為 UTC 保存。 */
+  triggerAt: string
+}
+
 export interface CurrencySummary {
   currency: string
   income: number
@@ -289,4 +309,20 @@ export const api = {
 
   deleteEvent: (eventId: string) =>
     request<void>(`/api/calendar-events/${eventId}`, { method: 'DELETE' }),
+
+  /** 取得區間內的提醒，依觸發時間由早到晚排序。已取消的不會回傳。 */
+  listReminders: (workspaceId: string, fromUtc: string, toUtc: string, limit?: number) =>
+    request<Reminder[]>(
+      `/api/reminders?workspaceId=${workspaceId}&from=${encodeURIComponent(fromUtc)}` +
+        `&to=${encodeURIComponent(toUtc)}${limit ? `&limit=${limit}` : ''}`,
+    ),
+
+  createReminder: (payload: SaveReminderPayload) =>
+    request<Reminder>('/api/reminders', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  cancelReminder: (reminderId: string) =>
+    request<void>(`/api/reminders/${reminderId}`, { method: 'DELETE' }),
 }

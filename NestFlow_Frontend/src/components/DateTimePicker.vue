@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { todayInZone } from '../utils/datetime'
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const MINUTE_STEP = 5
+
+/** 滾輪每一格的高度，需與 CSS 的 .wheel__item 一致。 */
+const ITEM_HEIGHT = 44
+
+/** 停止滑動多久後才視為選定，避免滑動過程一直改值。 */
+const SETTLE_DELAY = 120
 
 const props = defineProps<{
   /** 使用者當地時間，格式為 YYYY-MM-DDTHH:mm。 */
@@ -25,6 +31,12 @@ const draftMinute = ref(0)
 
 const hours = Array.from({ length: 24 }, (_, i) => i)
 const minutes = Array.from({ length: 60 / MINUTE_STEP }, (_, i) => i * MINUTE_STEP)
+
+const hourWheel = ref<HTMLElement | null>(null)
+const minuteWheel = ref<HTMLElement | null>(null)
+
+let hourTimer: number | undefined
+let minuteTimer: number | undefined
 
 function parse(value: string) {
   const [datePart, timePart = '00:00'] = value.split('T')
@@ -135,9 +147,71 @@ function confirm() {
   isOpen.value = false
 }
 
-// 開啟面板時鎖住背景捲動
-watch(isOpen, (value) => {
+// ---------------------------------------------------------------
+// 時間滾輪：左邊小時、右邊分鐘，垂直滑動選取
+// ---------------------------------------------------------------
+
+/** 把滾輪捲到指定值所在的位置。 */
+function scrollToValue(el: HTMLElement | null, list: number[], value: number, smooth: boolean) {
+  if (!el) {
+    return
+  }
+
+  const index = Math.max(list.indexOf(value), 0)
+
+  el.scrollTo({ top: index * ITEM_HEIGHT, behavior: smooth ? 'smooth' : 'auto' })
+}
+
+/** 滑動停止後，取中央那一格作為選定值。 */
+function settle(el: HTMLElement, list: number[]): number {
+  const index = Math.round(el.scrollTop / ITEM_HEIGHT)
+
+  return list[Math.min(Math.max(index, 0), list.length - 1)]
+}
+
+function onHourScroll(event: Event) {
+  const el = event.target as HTMLElement
+
+  window.clearTimeout(hourTimer)
+  hourTimer = window.setTimeout(() => {
+    draftHour.value = settle(el, hours)
+  }, SETTLE_DELAY)
+}
+
+function onMinuteScroll(event: Event) {
+  const el = event.target as HTMLElement
+
+  window.clearTimeout(minuteTimer)
+  minuteTimer = window.setTimeout(() => {
+    draftMinute.value = settle(el, minutes)
+  }, SETTLE_DELAY)
+}
+
+/** 直接點某一格時也捲到中央，維持與滑動一致的操作感。 */
+function selectHour(hour: number) {
+  draftHour.value = hour
+  scrollToValue(hourWheel.value, hours, hour, true)
+}
+
+function selectMinute(minute: number) {
+  draftMinute.value = minute
+  scrollToValue(minuteWheel.value, minutes, minute, true)
+}
+
+// 開啟面板時鎖住背景捲動，並把滾輪對到目前的時間
+watch(isOpen, async (value) => {
   document.body.style.overflow = value ? 'hidden' : ''
+
+  if (!value) {
+    window.clearTimeout(hourTimer)
+    window.clearTimeout(minuteTimer)
+    return
+  }
+
+  await nextTick()
+
+  scrollToValue(hourWheel.value, hours, draftHour.value, false)
+  scrollToValue(minuteWheel.value, minutes, draftMinute.value, false)
 })
 </script>
 
@@ -213,32 +287,48 @@ watch(isOpen, (value) => {
             <div class="time">
               <span class="time__label">時間</span>
 
-              <div class="time__row">
-                <div class="time__scroll" role="listbox" aria-label="小時">
+              <div class="wheels">
+                <span class="wheels__highlight" aria-hidden="true" />
+
+                <div
+                  ref="hourWheel"
+                  class="wheel"
+                  role="listbox"
+                  aria-label="小時"
+                  @scroll.passive="onHourScroll"
+                >
                   <button
                     v-for="hour in hours"
                     :key="hour"
                     type="button"
-                    class="time__pill"
+                    class="wheel__item"
                     :class="{ 'is-active': hour === draftHour }"
                     role="option"
                     :aria-selected="hour === draftHour"
-                    @click="draftHour = hour"
+                    @click="selectHour(hour)"
                   >
                     {{ pad(hour) }}
                   </button>
                 </div>
 
-                <div class="time__scroll" role="listbox" aria-label="分鐘">
+                <span class="wheels__colon" aria-hidden="true">:</span>
+
+                <div
+                  ref="minuteWheel"
+                  class="wheel"
+                  role="listbox"
+                  aria-label="分鐘"
+                  @scroll.passive="onMinuteScroll"
+                >
                   <button
                     v-for="minute in minutes"
                     :key="minute"
                     type="button"
-                    class="time__pill"
+                    class="wheel__item"
                     :class="{ 'is-active': minute === draftMinute }"
                     role="option"
                     :aria-selected="minute === draftMinute"
-                    @click="draftMinute = minute"
+                    @click="selectMinute(minute)"
                   >
                     {{ pad(minute) }}
                   </button>
@@ -417,39 +507,82 @@ watch(isOpen, (value) => {
   color: var(--color-text-muted);
 }
 
-.time__row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+/* 左邊小時、右邊分鐘的垂直滾輪。高度為 5 格，中央那格即為選取值。 */
+.wheels {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: 220px;
   margin-top: var(--space-2);
-}
-
-.time__scroll {
-  display: flex;
-  gap: var(--space-2);
-  overflow-x: auto;
-  padding-bottom: var(--space-1);
-  scrollbar-width: none;
-}
-
-.time__scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.time__pill {
-  flex-shrink: 0;
-  width: 48px;
-  min-height: 44px;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-muted);
+  overflow: hidden;
   background-color: var(--color-bg);
   border-radius: var(--radius-sm);
 }
 
-.time__pill.is-active {
+.wheels__highlight {
+  position: absolute;
+  top: 50%;
+  right: var(--space-3);
+  left: var(--space-3);
+  height: 44px;
+  transform: translateY(-50%);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
+
+.wheels__colon {
+  z-index: 1;
+  font-size: var(--font-size-title);
   font-weight: 700;
-  color: var(--color-surface);
-  background-color: var(--color-accent);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.wheel {
+  z-index: 1;
+  height: 100%;
+  overflow-y: auto;
+  /* 上下各補 (220 - 44) / 2，讓第一格與最後一格也能停在中央 */
+  padding-block: 88px;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wheel::-webkit-scrollbar {
+  display: none;
+}
+
+.wheel__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;
+  font-size: var(--font-size-title);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
+  opacity: 0.45;
+}
+
+.wheel__item.is-active {
+  font-weight: 700;
+  color: var(--color-text);
+  opacity: 1;
+}
+
+/* 關閉動態效果時不做透明度變化，避免辨識困難 */
+@media (prefers-reduced-motion: reduce) {
+  .wheel__item {
+    opacity: 1;
+  }
 }
 
 .sheet__actions {
