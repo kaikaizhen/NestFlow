@@ -33,6 +33,12 @@ services:
       ConnectionStrings__NestFlowDb: "Server=sqlserver,1433;Database=NestFlow;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True"
       Encryption__Key: ${ENCRYPTION_KEY}
       Cors__AllowedOrigins__0: "http://localhost:5173"
+      # 本機以 HTTP 測試，正式部署改為 true
+      Session__RequireHttps: "false"
+      LineLogin__ChannelId: ${LINE_CHANNEL_ID:-}
+      LineLogin__ChannelSecret: ${LINE_CHANNEL_SECRET:-}
+      LineLogin__CallbackUrl: "http://localhost:8080/api/auth/line/callback"
+      LineLogin__FrontendRedirectUrl: "http://localhost:5173/"
     ports:
       - "8080:8080"
     depends_on:

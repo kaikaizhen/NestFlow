@@ -1,9 +1,16 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using NestFlow_Backend.Common;
 using NestFlow_Backend.Data;
 using NestFlow_Backend.Helpers;
+using NestFlow_Backend.Middlewares;
+using NestFlow_Backend.Repositories;
+using NestFlow_Backend.Services;
+using NestFlow_Backend.Services.External;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +22,12 @@ builder.Services
     .Bind(builder.Configuration.GetSection(EncryptionOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+
+builder.Services.Configure<LineLoginOptions>(
+    builder.Configuration.GetSection(LineLoginOptions.SectionName));
+
+builder.Services.Configure<NestFlow_Backend.Common.SessionOptions>(
+    builder.Configuration.GetSection(NestFlow_Backend.Common.SessionOptions.SectionName));
 
 // ---------------------------------------------------------------
 // 資料存取
@@ -28,7 +41,35 @@ builder.Services.AddDbContext<NestFlowDbContext>(options =>
 // 共用服務
 // ---------------------------------------------------------------
 builder.Services.AddSingleton<ICryptoHelper, CryptoHelper>();
+builder.Services.AddSingleton<ICodeGenerator, CodeGenerator>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
+
+// Repository 層
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ISessionRepository, SessionRepository>();
+builder.Services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
+
+// Service 層
+builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+// LINE Login 對外呼叫與 JWKS 快取
+builder.Services.AddHttpClient<ILineLoginClient, LineLoginClient>(client =>
+    client.Timeout = TimeSpan.FromSeconds(10));
+
+builder.Services.AddSingleton<IConfigurationManager<OpenIdConnectConfiguration>>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<LineLoginOptions>>().Value;
+
+    return new ConfigurationManager<OpenIdConnectConfiguration>(
+        options.MetadataAddress,
+        new OpenIdConnectConfigurationRetriever(),
+        new HttpDocumentRetriever { RequireHttps = true });
+});
 
 // ---------------------------------------------------------------
 // CORS：僅允許設定檔列出的 PWA 來源
@@ -63,12 +104,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 
-    // 開發環境確保空資料庫存在，讓 /health/ready 可驗證連線。
-    // 目前沒有任何實體，因此不會建立任何資料表；Module 2 起改由 EF Migration 管理。
-    await EnsureDatabaseCreatedAsync(app);
+    // 開發環境自動套用 Migration，讓資料表與程式碼保持同步。
+    await MigrateDatabaseAsync(app);
 }
 
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseCors(PwaCorsPolicy);
+app.UseMiddleware<SessionAuthenticationMiddleware>();
 app.UseAuthorization();
 
 app.MapHealthChecks(GlobalConstants.LivenessEndpoint, new()
@@ -87,7 +129,7 @@ app.MapControllers();
 
 app.Run();
 
-static async Task EnsureDatabaseCreatedAsync(WebApplication app)
+static async Task MigrateDatabaseAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
@@ -95,7 +137,7 @@ static async Task EnsureDatabaseCreatedAsync(WebApplication app)
     try
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<NestFlowDbContext>();
-        await dbContext.Database.EnsureCreatedAsync();
+        await dbContext.Database.MigrateAsync();
     }
     catch (Exception ex)
     {
