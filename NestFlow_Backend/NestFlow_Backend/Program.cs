@@ -1,0 +1,126 @@
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using NestFlow_Backend.Common;
+using NestFlow_Backend.Data;
+using NestFlow_Backend.Helpers;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ---------------------------------------------------------------
+// 設定綁定（機密值只存在 appsettings.Development.json 或環境變數）
+// ---------------------------------------------------------------
+builder.Services
+    .AddOptions<EncryptionOptions>()
+    .Bind(builder.Configuration.GetSection(EncryptionOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// ---------------------------------------------------------------
+// 資料存取
+// ---------------------------------------------------------------
+builder.Services.AddDbContext<NestFlowDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("NestFlowDb"),
+        sql => sql.EnableRetryOnFailure()));
+
+// ---------------------------------------------------------------
+// 共用服務
+// ---------------------------------------------------------------
+builder.Services.AddSingleton<ICryptoHelper, CryptoHelper>();
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
+
+// ---------------------------------------------------------------
+// CORS：僅允許設定檔列出的 PWA 來源
+// ---------------------------------------------------------------
+const string PwaCorsPolicy = "PwaCorsPolicy";
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(PwaCorsPolicy, policy => policy
+        .WithOrigins(allowedOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials());
+});
+
+// ---------------------------------------------------------------
+// Health Check
+// ---------------------------------------------------------------
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: [GlobalConstants.LiveTag])
+    .AddDbContextCheck<NestFlowDbContext>("database", tags: [GlobalConstants.ReadyTag]);
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+
+    // 開發環境確保空資料庫存在，讓 /health/ready 可驗證連線。
+    // 目前沒有任何實體，因此不會建立任何資料表；Module 2 起改由 EF Migration 管理。
+    await EnsureDatabaseCreatedAsync(app);
+}
+
+app.UseCors(PwaCorsPolicy);
+app.UseAuthorization();
+
+app.MapHealthChecks(GlobalConstants.LivenessEndpoint, new()
+{
+    Predicate = check => check.Tags.Contains(GlobalConstants.LiveTag),
+    ResponseWriter = WriteHealthResponseAsync
+});
+
+app.MapHealthChecks(GlobalConstants.ReadinessEndpoint, new()
+{
+    Predicate = check => check.Tags.Contains(GlobalConstants.ReadyTag),
+    ResponseWriter = WriteHealthResponseAsync
+});
+
+app.MapControllers();
+
+app.Run();
+
+static async Task EnsureDatabaseCreatedAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<NestFlowDbContext>();
+        await dbContext.Database.EnsureCreatedAsync();
+    }
+    catch (Exception ex)
+    {
+        // 資料庫尚未就緒不應阻擋 API 啟動，/health/ready 會如實回報 Unhealthy。
+        logger.LogWarning(ex, "無法建立或連線資料庫，請確認 SQL Server 是否已啟動。");
+    }
+}
+
+static Task WriteHealthResponseAsync(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json; charset=utf-8";
+
+    // 只輸出狀態名稱，不輸出例外訊息，避免連線字串等資訊外洩。
+    var payload = new
+    {
+        status = report.Status.ToString(),
+        checks = report.Entries.Select(entry => new
+        {
+            name = entry.Key,
+            status = entry.Value.Status.ToString()
+        })
+    };
+
+    return context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+}
+
+/// <summary>供整合測試以 WebApplicationFactory 啟動本組件。</summary>
+public partial class Program;

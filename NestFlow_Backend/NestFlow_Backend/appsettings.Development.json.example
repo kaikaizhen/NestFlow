@@ -1,0 +1,16 @@
+{
+  "//": "複製為 appsettings.Development.json 後填入實際值。此檔僅為範本，實際檔案不進版控。",
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "NestFlowDb": "Server=localhost,1433;Database=NestFlow;User Id=sa;Password=請填入與 .env 相同的密碼;TrustServerCertificate=True;MultipleActiveResultSets=True"
+  },
+  "Encryption": {
+    "//Key": "AES-256-GCM 主金鑰，Base64 格式且解碼後為 32 bytes。可用 PowerShell 產生：[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Max 256 }))",
+    "Key": "請填入 Base64 格式的 32 bytes 金鑰"
+  }
+}
