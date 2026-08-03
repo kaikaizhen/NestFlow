@@ -1,0 +1,88 @@
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { useAuth } from '../stores/auth'
+
+/**
+ * 底部導航的三個主頁面，以及設定底下的子頁面。
+ * meta.public 為 true 的路由不需登入。
+ */
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('../views/LoginView.vue'),
+    meta: { title: '登入', public: true, hideNav: true },
+  },
+  {
+    path: '/',
+    redirect: '/calendar',
+  },
+  {
+    path: '/calendar',
+    name: 'calendar',
+    component: () => import('../views/CalendarView.vue'),
+    meta: { title: '行事曆' },
+  },
+  {
+    path: '/ledger',
+    name: 'ledger',
+    component: () => import('../views/LedgerView.vue'),
+    meta: { title: '記帳' },
+  },
+  {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('../views/SettingsView.vue'),
+    meta: { title: '設定' },
+  },
+  {
+    path: '/settings/workspaces',
+    name: 'workspaces',
+    component: () => import('../views/settings/WorkspacesView.vue'),
+    meta: { title: '資料空間' },
+  },
+  {
+    path: '/settings/workspaces/:workspaceId/members',
+    name: 'workspace-members',
+    component: () => import('../views/settings/MembersView.vue'),
+    meta: { title: '家庭成員' },
+  },
+  {
+    path: '/settings/join-family',
+    name: 'join-family',
+    component: () => import('../views/settings/JoinFamilyView.vue'),
+    meta: { title: '加入家庭' },
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/calendar',
+  },
+]
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes,
+  scrollBehavior: () => ({ top: 0 }),
+})
+
+router.beforeEach(async (to) => {
+  const { isAuthenticated, isResolved, refresh } = useAuth()
+
+  // 首次進入或登入導回後，先向後端確認 Session 是否有效
+  if (!isResolved.value) {
+    await refresh()
+  }
+
+  if (to.meta.public) {
+    // 已登入就不需要再看登入頁
+    return isAuthenticated.value && to.name === 'login' ? { name: 'calendar' } : true
+  }
+
+  return isAuthenticated.value ? true : { name: 'login' }
+})
+
+router.afterEach((to) => {
+  const title = to.meta.title as string | undefined
+  document.title = title ? `${title}｜NestFlow` : 'NestFlow'
+})
+
+export default router

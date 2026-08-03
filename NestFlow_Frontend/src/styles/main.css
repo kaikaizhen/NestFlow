@@ -1,0 +1,88 @@
+/* ---------------------------------------------------------------
+   NestFlow 設計權杖
+   極簡、明亮模式優先、黑白淺灰為主、大字體、大型點擊區。
+   深色模式第一版只保留設定入口，不提供樣式。
+   --------------------------------------------------------------- */
+:root {
+  --color-bg: #f7f7f8;
+  --color-surface: #ffffff;
+  --color-text: #111113;
+  --color-text-muted: #8a8a8e;
+  --color-border: #ececee;
+  --color-accent: #111113;
+  --color-income: #16a34a;
+  --color-expense: #dc2626;
+
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-full: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --font-size-caption: 13px;
+  --font-size-body: 16px;
+  --font-size-title: 20px;
+  --font-size-page-title: 28px;
+
+  --shadow-card: 0 1px 2px rgb(17 17 19 / 4%), 0 4px 16px rgb(17 17 19 / 4%);
+
+  --nav-height: 64px;
+
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
+    "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* 避免行動裝置上的雙擊縮放與點擊highlight，維持原生 App 手感 */
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+#app {
+  min-height: 100%;
+}
+
+/* 減少動態偏好時關閉所有動畫 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

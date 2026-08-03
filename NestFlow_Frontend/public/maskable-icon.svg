@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 滿版底色，圖形內縮至中央安全區，供 Android 任意遮罩裁切 -->
+  <rect width="512" height="512" fill="#111113" />
+  <g transform="translate(256 256) scale(0.66) translate(-256 -256)">
+    <path
+      d="M150 362V150h46l120 150V150h46v212h-46L196 212v150z"
+      fill="#ffffff"
+    />
+  </g>
+</svg>
