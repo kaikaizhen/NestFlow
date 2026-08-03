@@ -26,6 +26,9 @@ builder.Services
 builder.Services.Configure<LineLoginOptions>(
     builder.Configuration.GetSection(LineLoginOptions.SectionName));
 
+builder.Services.Configure<LineMessagingOptions>(
+    builder.Configuration.GetSection(LineMessagingOptions.SectionName));
+
 builder.Services.Configure<NestFlow_Backend.Common.SessionOptions>(
     builder.Configuration.GetSection(NestFlow_Backend.Common.SessionOptions.SectionName));
 
@@ -42,7 +45,10 @@ builder.Services.AddDbContext<NestFlowDbContext>(options =>
 // ---------------------------------------------------------------
 builder.Services.AddSingleton<ICryptoHelper, CryptoHelper>();
 builder.Services.AddSingleton<ICodeGenerator, CodeGenerator>();
+builder.Services.AddSingleton<IFixedFormatParser, FixedFormatParser>();
+builder.Services.AddSingleton<ILineSignatureValidator, LineSignatureValidator>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddMemoryCache();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
@@ -53,11 +59,16 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 builder.Services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
 builder.Services.AddScoped<IAccountEntryRepository, AccountEntryRepository>();
+builder.Services.AddScoped<IMessagingRepository, MessagingRepository>();
 
 // Service 層
 builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAccountEntryService, AccountEntryService>();
+builder.Services.AddScoped<ILineWebhookService, LineWebhookService>();
+
+builder.Services.AddHttpClient<ILineMessagingClient, LineMessagingClient>(client =>
+    client.Timeout = TimeSpan.FromSeconds(10));
 
 // LINE Login 對外呼叫與 JWKS 快取
 builder.Services.AddHttpClient<ILineLoginClient, LineLoginClient>(client =>

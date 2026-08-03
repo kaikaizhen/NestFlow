@@ -30,6 +30,12 @@ public class NestFlowDbContext : DbContext
 
     public DbSet<AccountEntry> AccountEntries => Set<AccountEntry>();
 
+    public DbSet<PendingAction> PendingActions => Set<PendingAction>();
+
+    public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
+
+    public DbSet<BindingCode> BindingCodes => Set<BindingCode>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

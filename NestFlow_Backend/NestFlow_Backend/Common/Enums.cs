@@ -69,3 +69,34 @@ public enum EntryStatus
     Active,
     Deleted,
 }
+
+/// <summary>待確認動作的類型。第一版只有記帳。</summary>
+public enum PendingActionType
+{
+    CreateExpense,
+    CreateIncome,
+}
+
+/// <summary>待確認動作的狀態。</summary>
+public enum PendingActionStatus
+{
+    Pending,
+    Confirmed,
+    Cancelled,
+    Superseded,
+    Expired,
+}
+
+/// <summary>外部事件處理狀態，用於冪等。</summary>
+public enum ProcessedEventStatus
+{
+    Processed,
+}
+
+/// <summary>身分綁定碼狀態。</summary>
+public enum BindingCodeStatus
+{
+    Pending,
+    Used,
+    Expired,
+}

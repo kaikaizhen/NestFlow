@@ -48,4 +48,17 @@ public class CurrentUserViewModel
     public string TimeZone { get; set; } = string.Empty;
 
     public bool IsLineLinked { get; set; }
+
+    public bool IsLineMessagingLinked { get; set; }
+
+    public bool IsLineMessagingConfigured { get; set; }
+}
+
+public class LineBotViewModel
+{
+    public string DisplayName { get; set; } = string.Empty;
+
+    public string? PictureUrl { get; set; }
+
+    public string AddFriendUrl { get; set; } = string.Empty;
 }
