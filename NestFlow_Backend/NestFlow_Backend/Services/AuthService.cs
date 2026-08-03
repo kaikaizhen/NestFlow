@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using NestFlow_Backend.Common;
 using NestFlow_Backend.Helpers;
@@ -13,38 +14,58 @@ public class AuthService : IAuthService
 {
     private const string DevChannelId = "dev-channel";
 
+    private const string BotInfoCacheKey = "line-bot-info";
+
+    /// <summary>身分綁定碼的有效期。</summary>
+    private static readonly TimeSpan BindingCodeLifetime = TimeSpan.FromMinutes(10);
+
+    /// <summary>官方帳號資訊很少變動，快取一段時間避免每次開設定頁都打 LINE。</summary>
+    private static readonly TimeSpan BotInfoCacheLifetime = TimeSpan.FromHours(1);
+
     private readonly ILineLoginClient _lineLoginClient;
+    private readonly ILineMessagingClient _messagingClient;
+    private readonly IMemoryCache _cache;
     private readonly IUserRepository _userRepository;
     private readonly ISessionRepository _sessionRepository;
+    private readonly IMessagingRepository _messagingRepository;
     private readonly IWorkspaceService _workspaceService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICodeGenerator _codeGenerator;
     private readonly ICryptoHelper _cryptoHelper;
     private readonly TimeProvider _timeProvider;
     private readonly LineLoginOptions _lineOptions;
+    private readonly LineMessagingOptions _messagingOptions;
     private readonly SessionOptions _sessionOptions;
 
     public AuthService(
         ILineLoginClient lineLoginClient,
+        ILineMessagingClient messagingClient,
+        IMemoryCache cache,
         IUserRepository userRepository,
         ISessionRepository sessionRepository,
+        IMessagingRepository messagingRepository,
         IWorkspaceService workspaceService,
         IUnitOfWork unitOfWork,
         ICodeGenerator codeGenerator,
         ICryptoHelper cryptoHelper,
         TimeProvider timeProvider,
         IOptions<LineLoginOptions> lineOptions,
+        IOptions<LineMessagingOptions> messagingOptions,
         IOptions<SessionOptions> sessionOptions)
     {
         _lineLoginClient = lineLoginClient;
+        _messagingClient = messagingClient;
+        _cache = cache;
         _userRepository = userRepository;
         _sessionRepository = sessionRepository;
+        _messagingRepository = messagingRepository;
         _workspaceService = workspaceService;
         _unitOfWork = unitOfWork;
         _codeGenerator = codeGenerator;
         _cryptoHelper = cryptoHelper;
         _timeProvider = timeProvider;
         _lineOptions = lineOptions.Value;
+        _messagingOptions = messagingOptions.Value;
         _sessionOptions = sessionOptions.Value;
     }
 
@@ -129,6 +150,13 @@ public class AuthService : IAuthService
 
         var identity = await _userRepository.GetExternalIdentityAsync(userId, IdentityProvider.Line, cancellationToken);
 
+        // Messaging Channel 的綁定與 Login 分開判斷：兩者可能屬於不同 Channel
+        var isMessagingLinked = await _userRepository.HasExternalIdentityAsync(
+            userId,
+            IdentityProvider.Line,
+            _messagingOptions.ChannelId,
+            cancellationToken);
+
         return new CurrentUserDtoModel
         {
             Id = user.Id,
@@ -137,6 +165,8 @@ public class AuthService : IAuthService
             DefaultWorkspaceId = user.DefaultWorkspaceId,
             TimeZone = user.TimeZone,
             IsLineLinked = identity is not null && identity.ChannelId != DevChannelId,
+            IsLineMessagingLinked = isMessagingLinked,
+            IsLineMessagingConfigured = _messagingOptions.IsConfigured,
         };
     }
 
@@ -153,6 +183,63 @@ public class AuthService : IAuthService
 
         user.TimeZone = timeZone;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<BindingCodeDtoModel> CreateBindingCodeAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        _ = await _userRepository.GetByIdAsync(userId, cancellationToken)
+            ?? throw AppException.Unauthorized();
+
+        var now = _timeProvider.GetUtcNow();
+        var code = _codeGenerator.GenerateBindingCode();
+        var expiresAt = now.Add(BindingCodeLifetime);
+
+        await _messagingRepository.AddBindingCodeAsync(
+            new BindingCode
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Provider = IdentityProvider.Line,
+                // 只保存雜湊，明文僅回傳一次
+                CodeHash = _cryptoHelper.Hash(code),
+                ExpiresAt = expiresAt,
+                Status = BindingCodeStatus.Pending,
+                CreatedAt = now,
+            },
+            cancellationToken);
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new BindingCodeDtoModel { Code = code, ExpiresAt = expiresAt };
+    }
+
+    public async Task<LineBotDtoModel?> GetLineBotAsync(CancellationToken cancellationToken)
+    {
+        if (_cache.TryGetValue<LineBotDtoModel>(BotInfoCacheKey, out var cached))
+        {
+            return cached;
+        }
+
+        var info = await _messagingClient.GetBotInfoAsync(cancellationToken);
+
+        if (info is null)
+        {
+            return null;
+        }
+
+        var dto = new LineBotDtoModel
+        {
+            DisplayName = info.DisplayName,
+            PictureUrl = info.PictureUrl,
+            // basicId 已含 @，例如 @123abcde
+            AddFriendUrl = $"https://line.me/R/ti/p/{Uri.EscapeDataString(info.BasicId)}",
+        };
+
+        _cache.Set(BotInfoCacheKey, dto, BotInfoCacheLifetime);
+
+        return dto;
     }
 
     public async Task LogoutAsync(string sessionToken, CancellationToken cancellationToken)

@@ -17,6 +17,9 @@ public class NestFlowApiFactory : WebApplicationFactory<Program>
     /// <summary>測試專用金鑰，僅供單元測試使用，與正式環境無關。</summary>
     public const string TestEncryptionKey = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
 
+    /// <summary>測試用的 Messaging Channel Secret，供 Webhook 簽章驗證測試使用。</summary>
+    public const string TestChannelSecret = "test-messaging-channel-secret";
+
     // 連線保持開啟，SQLite In-Memory 資料庫才不會在測試中途被釋放
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
@@ -32,6 +35,8 @@ public class NestFlowApiFactory : WebApplicationFactory<Program>
                 ["ConnectionStrings:NestFlowDb"] = "DataSource=:memory:",
                 ["Session:RequireHttps"] = "false",
                 ["LineLogin:ChannelId"] = "test-channel",
+                ["LineMessaging:ChannelId"] = "test-messaging-channel",
+                ["LineMessaging:ChannelSecret"] = TestChannelSecret,
             });
         });
 

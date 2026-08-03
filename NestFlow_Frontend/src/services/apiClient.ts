@@ -68,6 +68,10 @@ export interface CurrentUser {
   /** IANA 時區名稱，前端據此換算顯示時間與月份區間。 */
   timeZone: string
   isLineLinked: boolean
+  /** 是否已綁定 LINE 官方帳號，綁定後才能用 LINE 訊息記帳。 */
+  isLineMessagingLinked: boolean
+  /** 後端是否已設定 Messaging Channel。未設定時不顯示綁定入口。 */
+  isLineMessagingConfigured: boolean
 }
 
 export type WorkspaceType = 'personal' | 'family'
@@ -93,6 +97,13 @@ export interface WorkspaceMember {
 export interface Invitation {
   code: string
   expiresAt: string
+}
+
+export interface LineBot {
+  displayName: string
+  pictureUrl: string | null
+  /** 加好友連結。手機開啟直接跳 LINE，電腦開啟顯示 QR Code。 */
+  addFriendUrl: string
 }
 
 export type EntryType = 'expense' | 'income'
@@ -191,6 +202,13 @@ export const api = {
 
   removeMember: (workspaceId: string, userId: string) =>
     request<void>(`/api/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' }),
+
+  /** 取得官方帳號資訊。後端未設定 Messaging Channel 時回 204，這裡轉成 null。 */
+  getLineBot: () => request<LineBot | undefined>('/api/auth/me/line-bot').then((v) => v ?? null),
+
+  /** 產生 LINE 官方帳號綁定碼。明文只會回傳這一次。 */
+  createBindingCode: () =>
+    request<Invitation>('/api/auth/me/binding-code', { method: 'POST' }),
 
   updateTimeZone: (timeZone: string) =>
     request<void>('/api/auth/me/timezone', {

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NestFlow_Backend.Data;
 
@@ -11,9 +12,11 @@ using NestFlow_Backend.Data;
 namespace NestFlow_Backend.Data.Migrations
 {
     [DbContext(typeof(NestFlowDbContext))]
-    partial class NestFlowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260803122138_Module4_LineMessaging")]
+    partial class Module4_LineMessaging
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

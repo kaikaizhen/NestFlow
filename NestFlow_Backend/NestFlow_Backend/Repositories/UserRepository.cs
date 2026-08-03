@@ -37,6 +37,22 @@ public class UserRepository : IUserRepository
         return identity?.User;
     }
 
+    public async Task<User?> GetByExternalSubjectHashAnyChannelAsync(
+        IdentityProvider provider,
+        string externalSubjectHash,
+        CancellationToken cancellationToken)
+    {
+        var identity = await _dbContext.ExternalIdentities
+            .Include(x => x.User)
+            .FirstOrDefaultAsync(
+                x => x.Provider == provider
+                    && x.ExternalSubjectHash == externalSubjectHash
+                    && x.Status == ExternalIdentityStatus.Active,
+                cancellationToken);
+
+        return identity?.User;
+    }
+
     public async Task AddAsync(User user, CancellationToken cancellationToken)
     {
         await _dbContext.Users.AddAsync(user, cancellationToken);
@@ -54,6 +70,20 @@ public class UserRepository : IUserRepository
     {
         return _dbContext.ExternalIdentities.FirstOrDefaultAsync(
             x => x.UserId == userId && x.Provider == provider && x.Status == ExternalIdentityStatus.Active,
+            cancellationToken);
+    }
+
+    public Task<bool> HasExternalIdentityAsync(
+        Guid userId,
+        IdentityProvider provider,
+        string channelId,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.ExternalIdentities.AnyAsync(
+            x => x.UserId == userId
+                && x.Provider == provider
+                && x.ChannelId == channelId
+                && x.Status == ExternalIdentityStatus.Active,
             cancellationToken);
     }
 }

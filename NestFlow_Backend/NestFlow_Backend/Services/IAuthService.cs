@@ -21,5 +21,11 @@ public interface IAuthService
     /// <summary>更新使用者時區。資料仍以 UTC 保存，此設定只影響顯示與月份切分。</summary>
     Task UpdateTimeZoneAsync(Guid userId, string timeZone, CancellationToken cancellationToken);
 
+    /// <summary>產生身分綁定碼，供在 LINE 對話中輸入以綁定帳號。明文只回傳一次。</summary>
+    Task<BindingCodeDtoModel> CreateBindingCodeAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>取得 LINE 官方帳號資訊。未設定 Channel 或呼叫失敗時回傳 null。</summary>
+    Task<LineBotDtoModel?> GetLineBotAsync(CancellationToken cancellationToken);
+
     Task LogoutAsync(string sessionToken, CancellationToken cancellationToken);
 }

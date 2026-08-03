@@ -39,6 +39,10 @@ services:
       LineLogin__ChannelSecret: ${LINE_CHANNEL_SECRET:-}
       LineLogin__CallbackUrl: "http://localhost:8080/api/auth/line/callback"
       LineLogin__FrontendRedirectUrl: "http://localhost:5173/"
+      # Messaging API Channel（未設定時 Webhook 停用，可改用 /api/dev/line 模擬端點）
+      LineMessaging__ChannelId: ${LINE_MESSAGING_CHANNEL_ID:-}
+      LineMessaging__ChannelSecret: ${LINE_MESSAGING_CHANNEL_SECRET:-}
+      LineMessaging__ChannelAccessToken: ${LINE_MESSAGING_ACCESS_TOKEN:-}
     ports:
       - "8080:8080"
     depends_on:

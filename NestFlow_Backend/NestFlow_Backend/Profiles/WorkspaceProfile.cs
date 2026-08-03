@@ -21,5 +21,7 @@ public class WorkspaceProfile : Profile
         CreateMap<InvitationDtoModel, InvitationViewModel>();
 
         CreateMap<CurrentUserDtoModel, CurrentUserViewModel>();
+
+        CreateMap<LineBotDtoModel, LineBotViewModel>();
     }
 }

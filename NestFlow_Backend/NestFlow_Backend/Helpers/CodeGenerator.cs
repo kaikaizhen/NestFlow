@@ -9,9 +9,15 @@ public class CodeGenerator : ICodeGenerator
 
     private const int InvitationCodeLength = 8;
 
-    public string GenerateInvitationCode()
+    private const int BindingCodeLength = 6;
+
+    public string GenerateInvitationCode() => RandomCode(InvitationCodeLength);
+
+    public string GenerateBindingCode() => RandomCode(BindingCodeLength);
+
+    private static string RandomCode(int length)
     {
-        var chars = new char[InvitationCodeLength];
+        var chars = new char[length];
 
         for (var i = 0; i < chars.Length; i++)
         {

@@ -65,6 +65,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '時區' },
   },
   {
+    path: '/settings/line-binding',
+    name: 'line-binding',
+    component: () => import('../views/settings/LineBindingView.vue'),
+    meta: { title: 'LINE 綁定' },
+  },
+  {
     path: '/settings/join-family',
     name: 'join-family',
     component: () => import('../views/settings/JoinFamilyView.vue'),

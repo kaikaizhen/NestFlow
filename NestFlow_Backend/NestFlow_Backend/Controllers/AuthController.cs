@@ -127,6 +127,29 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// 取得 LINE 官方帳號資訊，讓使用者先加好友再綁定。
+    /// 未設定 Messaging Channel 時回傳 204，前端改顯示手動說明。
+    /// </summary>
+    [HttpGet("me/line-bot")]
+    [RequireSession]
+    public async Task<ActionResult<LineBotViewModel>> GetLineBot(CancellationToken cancellationToken)
+    {
+        var dto = await _authService.GetLineBotAsync(cancellationToken);
+
+        return dto is null ? NoContent() : Ok(_mapper.Map<LineBotViewModel>(dto));
+    }
+
+    /// <summary>產生 LINE 身分綁定碼。明文只在此回傳一次。</summary>
+    [HttpPost("me/binding-code")]
+    [RequireSession]
+    public async Task<ActionResult<InvitationViewModel>> CreateBindingCode(CancellationToken cancellationToken)
+    {
+        var dto = await _authService.CreateBindingCodeAsync(_currentUser.RequireUserId(), cancellationToken);
+
+        return Ok(new InvitationViewModel { Code = dto.Code, ExpiresAt = dto.ExpiresAt });
+    }
+
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {

@@ -8,6 +8,9 @@ public interface ICodeGenerator
     /// <summary>產生 8 碼大寫英數邀請碼，已排除 0、O、1、I、L 等易混字元。</summary>
     string GenerateInvitationCode();
 
+    /// <summary>產生 6 碼大寫英數身分綁定碼，字元集與邀請碼相同。</summary>
+    string GenerateBindingCode();
+
     /// <summary>產生 Session Token（URL-safe Base64，256 bits）。</summary>
     string GenerateSessionToken();
 
