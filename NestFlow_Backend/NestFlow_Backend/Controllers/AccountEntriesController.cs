@@ -83,6 +83,17 @@ public class AccountEntriesController : ControllerBase
         return Ok(_mapper.Map<List<CurrencySummaryViewModel>>(dtos));
     }
 
+    /// <summary>取得單筆記帳，供編輯畫面使用。</summary>
+    [HttpGet("{entryId:guid}")]
+    public async Task<ActionResult<AccountEntryViewModel>> Get(
+        Guid entryId,
+        CancellationToken cancellationToken)
+    {
+        var dto = await _entryService.GetAsync(_currentUser.RequireUserId(), entryId, cancellationToken);
+
+        return Ok(_mapper.Map<AccountEntryViewModel>(dto));
+    }
+
     [HttpPost]
     public async Task<ActionResult<AccountEntryViewModel>> Create(
         [FromBody] SaveAccountEntryParamModel param,

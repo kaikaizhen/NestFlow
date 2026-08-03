@@ -30,6 +30,17 @@ public class AccountEntryService : IAccountEntryService
         _timeProvider = timeProvider;
     }
 
+    public async Task<AccountEntryDtoModel> GetAsync(
+        Guid userId,
+        Guid entryId,
+        CancellationToken cancellationToken)
+    {
+        var entry = await GetAccessibleEntryAsync(userId, entryId, cancellationToken);
+        var owner = await _userRepository.GetByIdAsync(entry.UserId, cancellationToken);
+
+        return ToDto(entry, owner?.DisplayName ?? string.Empty);
+    }
+
     public async Task<AccountEntryDtoModel> CreateAsync(
         Guid userId,
         Guid workspaceId,

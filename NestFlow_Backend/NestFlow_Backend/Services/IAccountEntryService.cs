@@ -4,6 +4,9 @@ namespace NestFlow_Backend.Services;
 
 public interface IAccountEntryService
 {
+    /// <summary>取得單筆記帳，供編輯畫面使用。</summary>
+    Task<AccountEntryDtoModel> GetAsync(Guid userId, Guid entryId, CancellationToken cancellationToken);
+
     Task<AccountEntryDtoModel> CreateAsync(
         Guid userId,
         Guid workspaceId,

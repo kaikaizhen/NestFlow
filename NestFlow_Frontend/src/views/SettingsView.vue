@@ -8,9 +8,11 @@ import SettingsGroup from '../components/SettingsGroup.vue'
 import SettingsRow from '../components/SettingsRow.vue'
 import { api, type Workspace } from '../services/apiClient'
 import { useAuth } from '../stores/auth'
+import { useWorkspaces } from '../stores/workspace'
 
 const router = useRouter()
 const { currentUser, logout } = useAuth()
+const { reset: resetWorkspaces } = useWorkspaces()
 
 const workspaces = ref<Workspace[]>([])
 const errorMessage = ref('')
@@ -41,6 +43,8 @@ async function signOut() {
 
   try {
     await logout()
+    // 清除記憶的資料空間，避免下一位使用者沿用到無權存取的空間
+    resetWorkspaces()
     await router.replace({ name: 'login' })
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '登出失敗。'
@@ -142,6 +146,27 @@ onMounted(load)
             >
               <ellipse cx="12" cy="6" rx="8" ry="3" />
               <path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+            </svg>
+          </template>
+        </SettingsRow>
+      </RouterLink>
+
+      <RouterLink class="link" :to="{ name: 'timezone' }">
+        <SettingsRow label="時區" :value="currentUser?.timeZone ?? ''" :disabled="false">
+          <template #icon>
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
             </svg>
           </template>
         </SettingsRow>

@@ -79,6 +79,23 @@ public class AccountEntryTests : IClassFixture<NestFlowApiFactory>
     }
 
     [Fact]
+    public async Task 取得單筆記帳_非成員應回404()
+    {
+        var (owner, _) = await CreateUserWithWorkspaceAsync("記帳擁有者");
+        var familyId = await owner.CreateWorkspaceAsync("我們家", "family");
+        var created = await CreateEntryAsync(owner, familyId, "expense", 100, "food", "私人午餐");
+
+        var mine = await owner.GetFromJsonAsync<EntryResponse>($"/api/account-entries/{created.Id}");
+
+        var outsider = _factory.CreateClient();
+        await outsider.LoginAsync(NewSubject(), "外人");
+        var theirs = await outsider.GetAsync($"/api/account-entries/{created.Id}");
+
+        Assert.Equal("私人午餐", mine!.Note);
+        Assert.Equal(HttpStatusCode.NotFound, theirs.StatusCode);
+    }
+
+    [Fact]
     public async Task 修改記帳_應更新金額與分類()
     {
         var (client, workspaceId) = await CreateUserWithWorkspaceAsync("修改者");
