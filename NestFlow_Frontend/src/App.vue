@@ -1,5 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import BottomNav from './components/BottomNav.vue'
+
+const route = useRoute()
+
+// 登入頁不顯示底部導航
+const showNav = computed(() => route.meta.hideNav !== true)
 </script>
 
 <template>
@@ -12,7 +19,7 @@ import BottomNav from './components/BottomNav.vue'
       </RouterView>
     </main>
 
-    <BottomNav />
+    <BottomNav v-if="showNav" />
   </div>
 </template>
 
