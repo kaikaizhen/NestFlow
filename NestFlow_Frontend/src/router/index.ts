@@ -23,6 +23,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '行事曆' },
   },
   {
+    path: '/calendar/new',
+    name: 'event-create',
+    component: () => import('../views/calendar/EventEditView.vue'),
+    meta: { title: '新增行程' },
+  },
+  {
+    path: '/calendar/:eventId/edit',
+    name: 'event-edit',
+    component: () => import('../views/calendar/EventEditView.vue'),
+    meta: { title: '編輯行程' },
+  },
+  {
     path: '/ledger',
     name: 'ledger',
     component: () => import('../views/LedgerView.vue'),

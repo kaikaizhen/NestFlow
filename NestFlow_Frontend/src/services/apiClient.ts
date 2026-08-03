@@ -120,6 +120,25 @@ export interface AccountEntry {
   createdByDisplayName: string
 }
 
+export interface CalendarEvent {
+  id: string
+  title: string
+  description: string | null
+  startAt: string
+  endAt: string
+  createdByUserId: string
+  createdByDisplayName: string
+}
+
+export interface SaveCalendarEventPayload {
+  workspaceId: string
+  title: string
+  description: string | null
+  /** 帶時區的 ISO 字串，後端會轉為 UTC 保存。 */
+  startAt: string
+  endAt: string
+}
+
 export interface CurrencySummary {
   currency: string
   income: number
@@ -246,4 +265,28 @@ export const api = {
 
   deleteEntry: (entryId: string) =>
     request<void>(`/api/account-entries/${entryId}`, { method: 'DELETE' }),
+
+  /** 取得與區間有重疊的行程，依開始時間由早到晚排序。 */
+  listEvents: (workspaceId: string, fromUtc: string, toUtc: string, limit?: number) =>
+    request<CalendarEvent[]>(
+      `/api/calendar-events?workspaceId=${workspaceId}&from=${encodeURIComponent(fromUtc)}` +
+        `&to=${encodeURIComponent(toUtc)}${limit ? `&limit=${limit}` : ''}`,
+    ),
+
+  getEvent: (eventId: string) => request<CalendarEvent>(`/api/calendar-events/${eventId}`),
+
+  createEvent: (payload: SaveCalendarEventPayload) =>
+    request<CalendarEvent>('/api/calendar-events', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateEvent: (eventId: string, payload: SaveCalendarEventPayload) =>
+    request<CalendarEvent>(`/api/calendar-events/${eventId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteEvent: (eventId: string) =>
+    request<void>(`/api/calendar-events/${eventId}`, { method: 'DELETE' }),
 }
