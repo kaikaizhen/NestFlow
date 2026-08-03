@@ -70,11 +70,19 @@ public enum EntryStatus
     Deleted,
 }
 
-/// <summary>待確認動作的類型。第一版只有記帳。</summary>
+/// <summary>行程狀態。刪除採軟刪除，不從資料庫移除。</summary>
+public enum CalendarEventStatus
+{
+    Active,
+    Deleted,
+}
+
+/// <summary>待確認動作的類型。</summary>
 public enum PendingActionType
 {
     CreateExpense,
     CreateIncome,
+    CreateCalendarEvent,
 }
 
 /// <summary>待確認動作的狀態。</summary>
