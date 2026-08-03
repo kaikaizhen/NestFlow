@@ -120,6 +120,60 @@ export function isoToLocalInput(iso: string, timeZone: string): string {
   return `${parts.year}-${parts.month}-${parts.day}T${hour}:${parts.minute}`
 }
 
+/** 使用者時區下的日期鍵（YYYY-MM-DD），用於月曆標記與分組。 */
+export function dayKeyInZone(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso))
+}
+
+/** 組出日期鍵，避免各處重複補零。 */
+export function toDayKey(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+/** 取得某一天在使用者時區下的 UTC 起訖（前閉後開）。 */
+export function dayRangeUtc(
+  year: number,
+  month: number,
+  day: number,
+  days: number,
+  timeZone: string,
+): { fromUtc: string; toUtc: string } {
+  const from = zonedToUtc(year, month, day, 0, 0, timeZone)
+
+  // 以 UTC 推進天數再換算，避免月底與日光節約時間的邊界問題
+  const nextLocal = new Date(Date.UTC(year, month - 1, day + days))
+  const to = zonedToUtc(
+    nextLocal.getUTCFullYear(),
+    nextLocal.getUTCMonth() + 1,
+    nextLocal.getUTCDate(),
+    0,
+    0,
+    timeZone,
+  )
+
+  return { fromUtc: from.toISOString(), toUtc: to.toISOString() }
+}
+
+/** 顯示用：HH:mm。 */
+export function formatTime(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(iso))
+}
+
+/** 顯示用：週日～週六。 */
+export function formatWeekday(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('zh-TW', { timeZone, weekday: 'short' }).format(new Date(iso))
+}
+
 /** 顯示用：M月D日。 */
 export function formatMonthDay(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat('zh-TW', {
