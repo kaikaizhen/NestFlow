@@ -32,6 +32,8 @@ public class NestFlowDbContext : DbContext
 
     public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();
 
+    public DbSet<Reminder> Reminders => Set<Reminder>();
+
     public DbSet<PendingAction> PendingActions => Set<PendingAction>();
 
     public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();

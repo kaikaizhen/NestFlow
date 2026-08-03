@@ -19,6 +19,9 @@ public class LineMessagingOptions
 
     public string ReplyEndpoint { get; set; } = "https://api.line.me/v2/bot/message/reply";
 
+    /// <summary>主動推播的端點，提醒通知走這裡。</summary>
+    public string PushEndpoint { get; set; } = "https://api.line.me/v2/bot/message/push";
+
     /// <summary>查詢官方帳號基本資料（含 basicId）的端點。</summary>
     public string BotInfoEndpoint { get; set; } = "https://api.line.me/v2/bot/info";
 

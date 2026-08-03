@@ -173,23 +173,25 @@ onMounted(load)
         </SettingsRow>
       </RouterLink>
 
-      <SettingsRow label="提醒通知" value="Module 6">
-        <template #icon>
-          <svg
-            viewBox="0 0 24 24"
-            width="22"
-            height="22"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6M10.5 20a2 2 0 0 0 3 0" />
-          </svg>
-        </template>
-      </SettingsRow>
+      <RouterLink class="link" :to="{ name: 'reminders' }">
+        <SettingsRow label="提醒通知" :disabled="false">
+          <template #icon>
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6M10.5 20a2 2 0 0 0 3 0" />
+            </svg>
+          </template>
+        </SettingsRow>
+      </RouterLink>
     </SettingsGroup>
 
     <SettingsGroup label="家庭">

@@ -60,6 +60,50 @@ public class LineMessagingClient : ILineMessagingClient
         }
     }
 
+    public async Task<bool> PushAsync(string externalUserId, string text, CancellationToken cancellationToken)
+    {
+        if (!_options.IsConfigured)
+        {
+            _logger.LogWarning("LINE Messaging 尚未設定，無法推播。");
+            return false;
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            to = externalUserId,
+            messages = new[]
+            {
+                new { type = "text", text = Truncate(text) },
+            },
+        });
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, _options.PushEndpoint)
+            {
+                Content = new StringContent(payload, Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ChannelAccessToken);
+
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            // 訊息內容或收件者有問題時重試也不會成功，記錄狀態碼供排查
+            _logger.LogWarning("LINE 推播失敗，狀態碼 {StatusCode}。", (int)response.StatusCode);
+
+            return false;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "無法連線 LINE 進行推播。");
+            return false;
+        }
+    }
+
     public async Task<LineBotInfo?> GetBotInfoAsync(CancellationToken cancellationToken)
     {
         if (!_options.IsConfigured)

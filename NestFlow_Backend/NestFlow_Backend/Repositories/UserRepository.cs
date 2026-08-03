@@ -73,6 +73,18 @@ public class UserRepository : IUserRepository
             cancellationToken);
     }
 
+    public Task<List<ExternalIdentity>> ListExternalIdentitiesAsync(
+        Guid userId,
+        IdentityProvider provider,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.ExternalIdentities
+            .Where(x => x.UserId == userId
+                && x.Provider == provider
+                && x.Status == ExternalIdentityStatus.Active)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<bool> HasExternalIdentityAsync(
         Guid userId,
         IdentityProvider provider,
