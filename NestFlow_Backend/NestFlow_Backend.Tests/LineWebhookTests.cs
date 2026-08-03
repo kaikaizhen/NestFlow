@@ -107,6 +107,85 @@ public class LineWebhookTests : IClassFixture<NestFlowApiFactory>
     }
 
     [Fact]
+    public async Task 行程格式_確認後才寫入行事曆()
+    {
+        var (client, lineUserId, workspaceId) = await CreateBoundUserAsync("排行程的人");
+
+        var pending = await SendAsync(client, lineUserId, "行程 明天 14:00 專案進度會議");
+
+        Assert.Contains("準備新增行程", pending);
+        Assert.Contains("專案進度會議", pending);
+        Assert.Contains("14:00", pending);
+        Assert.Empty(await ListEventsAsync(client, workspaceId));
+
+        var confirmed = await SendAsync(client, lineUserId, "確認");
+
+        var created = Assert.Single(await ListEventsAsync(client, workspaceId));
+
+        Assert.Contains("已加入行程", confirmed);
+        Assert.Equal("專案進度會議", created.Title);
+
+        // 未指定結束時間時預設一小時
+        Assert.Equal(TimeSpan.FromHours(1), created.EndAt - created.StartAt);
+    }
+
+    [Fact]
+    public async Task 行程指定起訖時間_應照著建立()
+    {
+        var (client, lineUserId, workspaceId) = await CreateBoundUserAsync("指定時段的人");
+
+        await SendAsync(client, lineUserId, "行程 明天 14:00-15:30 看牙醫");
+        await SendAsync(client, lineUserId, "確認");
+
+        var created = Assert.Single(await ListEventsAsync(client, workspaceId));
+
+        Assert.Equal("看牙醫", created.Title);
+        Assert.Equal(TimeSpan.FromMinutes(90), created.EndAt - created.StartAt);
+    }
+
+    [Fact]
+    public async Task 行程取消_不應寫入行事曆()
+    {
+        var (client, lineUserId, workspaceId) = await CreateBoundUserAsync("取消行程的人");
+
+        await SendAsync(client, lineUserId, "行程 明天 14:00 開會");
+        var reply = await SendAsync(client, lineUserId, "取消");
+
+        Assert.Contains("已取消", reply);
+        Assert.Empty(await ListEventsAsync(client, workspaceId));
+    }
+
+    [Fact]
+    public async Task 行程缺少時間或標題_應回覆用法()
+    {
+        var (client, lineUserId, workspaceId) = await CreateBoundUserAsync("行程亂打的人");
+
+        // 沒有時間
+        Assert.Contains("可以這樣記帳", await SendAsync(client, lineUserId, "行程 開會"));
+
+        // 有時間但沒有標題
+        Assert.Contains("可以這樣記帳", await SendAsync(client, lineUserId, "行程 明天 14:00"));
+
+        Assert.Empty(await ListEventsAsync(client, workspaceId));
+    }
+
+    [Fact]
+    public async Task 記帳與行程_共用同一筆待確認()
+    {
+        var (client, lineUserId, workspaceId) = await CreateBoundUserAsync("先記帳再排行程的人");
+
+        await SendAsync(client, lineUserId, "記帳 午餐 120");
+        var second = await SendAsync(client, lineUserId, "行程 明天 14:00 開會");
+        await SendAsync(client, lineUserId, "確認");
+
+        Assert.Contains("上一筆待確認的項目已取消", second);
+
+        // 後傳的行程才會寫入，先前的記帳被取代
+        Assert.Single(await ListEventsAsync(client, workspaceId));
+        Assert.Empty(await ListAsync(client, workspaceId));
+    }
+
+    [Fact]
     public async Task 無法解析的訊息_應回覆用法且不建立待確認()
     {
         var (client, lineUserId, workspaceId) = await CreateBoundUserAsync("亂打字的人");
@@ -302,11 +381,27 @@ public class LineWebhookTests : IClassFixture<NestFlowApiFactory>
             $"/api/account-entries?workspaceId={workspaceId}&from={from}&to={to}"))!;
     }
 
+    private static async Task<List<EventResponse>> ListEventsAsync(HttpClient client, Guid workspaceId)
+    {
+        var from = Uri.EscapeDataString(DateTimeOffset.UtcNow.AddDays(-1).ToString("O"));
+        var to = Uri.EscapeDataString(DateTimeOffset.UtcNow.AddDays(10).ToString("O"));
+
+        return (await client.GetFromJsonAsync<List<EventResponse>>(
+            $"/api/calendar-events?workspaceId={workspaceId}&from={from}&to={to}"))!;
+    }
+
     private static string NewSubject() => $"U{Guid.NewGuid():N}";
 
     private record SimulateResponse(string? Reply);
 
     private record MeResponse(bool IsLineMessagingLinked, bool IsLineMessagingConfigured);
+
+    private record EventResponse(
+        Guid Id,
+        string Title,
+        string? Description,
+        DateTimeOffset StartAt,
+        DateTimeOffset EndAt);
 
     private record EntryResponse(
         Guid Id,

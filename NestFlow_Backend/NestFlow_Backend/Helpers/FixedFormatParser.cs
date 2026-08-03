@@ -12,6 +12,12 @@ namespace NestFlow_Backend.Helpers;
 ///   確認
 ///   取消
 /// 「記帳」視同支出。金額可帶小數與千分位逗號。
+///
+/// 行程使用同樣的固定格式（自然語言留待 Module 9 起交給 Dify）：
+///   行程 明天 14:00 開會
+///   行程 8/10 14:00 看牙醫
+///   行程 8/10 14:00-15:30 專案會議
+/// 未指定日期時視為今天，未指定結束時間時預設一小時。
 /// </summary>
 public partial class FixedFormatParser : IFixedFormatParser
 {
@@ -20,6 +26,17 @@ public partial class FixedFormatParser : IFixedFormatParser
     private static readonly string[] ConfirmKeywords = ["確認", "確定", "yes", "y", "ok"];
     private static readonly string[] CancelKeywords = ["取消", "no", "n"];
     private static readonly string[] HelpKeywords = ["說明", "help", "?", "？", "指令"];
+    private static readonly string[] EventKeywords = ["行程", "行事曆"];
+
+    /// <summary>相對日期用詞對應的天數位移。</summary>
+    private static readonly Dictionary<string, int> RelativeDays = new()
+    {
+        ["今天"] = 0,
+        ["今日"] = 0,
+        ["明天"] = 1,
+        ["明日"] = 1,
+        ["後天"] = 2,
+    };
 
     public FixedCommand Parse(string message)
     {
@@ -59,6 +76,11 @@ public partial class FixedFormatParser : IFixedFormatParser
         if (tokens.Length < 2)
         {
             return new FixedCommand(FixedCommandKind.None);
+        }
+
+        if (EventKeywords.Contains(tokens[0], StringComparer.OrdinalIgnoreCase))
+        {
+            return ParseEvent(tokens);
         }
 
         EntryType type;
@@ -119,6 +141,70 @@ public partial class FixedFormatParser : IFixedFormatParser
             isFallback);
     }
 
+    /// <summary>
+    /// 解析「行程 [日期] 時間 標題」。日期與結束時間可省略。
+    /// 只做字面解析，不換算時區，也不判斷日期是否合理。
+    /// </summary>
+    private static FixedCommand ParseEvent(string[] tokens)
+    {
+        var index = 1;
+        int? dayOffset = null;
+        int? month = null;
+        int? day = null;
+
+        if (RelativeDays.TryGetValue(tokens[index], out var offset))
+        {
+            dayOffset = offset;
+            index++;
+        }
+        else
+        {
+            var dateMatch = EventDateRegex().Match(tokens[index]);
+
+            if (dateMatch.Success)
+            {
+                month = int.Parse(dateMatch.Groups["month"].Value);
+                day = int.Parse(dateMatch.Groups["day"].Value);
+                index++;
+            }
+        }
+
+        if (index >= tokens.Length)
+        {
+            return new FixedCommand(FixedCommandKind.None);
+        }
+
+        var timeMatch = EventTimeRegex().Match(tokens[index]);
+
+        if (!timeMatch.Success)
+        {
+            return new FixedCommand(FixedCommandKind.None);
+        }
+
+        index++;
+
+        var title = string.Join(' ', tokens[index..]).Trim();
+
+        if (title.Length == 0)
+        {
+            return new FixedCommand(FixedCommandKind.None);
+        }
+
+        var endHourGroup = timeMatch.Groups["endHour"];
+
+        return new FixedCommand(
+            FixedCommandKind.Event,
+            Event: new ParsedEvent(
+                title,
+                dayOffset,
+                month,
+                day,
+                int.Parse(timeMatch.Groups["hour"].Value),
+                int.Parse(timeMatch.Groups["minute"].Value),
+                endHourGroup.Success ? int.Parse(endHourGroup.Value) : null,
+                endHourGroup.Success ? int.Parse(timeMatch.Groups["endMinute"].Value) : null));
+    }
+
     /// <summary>統一全形空白與全形數字，並壓縮連續空白。</summary>
     private static string Normalize(string message)
     {
@@ -135,6 +221,9 @@ public partial class FixedFormatParser : IFixedFormatParser
                     >= '０' and <= '９' => (char)(c - '０' + '0'),
                     '，' => ',',
                     '．' => '.',
+                    '：' => ':',
+                    '／' => '/',
+                    '～' or '－' or '—' => '-',
                     _ => c,
                 };
             }
@@ -160,4 +249,12 @@ public partial class FixedFormatParser : IFixedFormatParser
 
     [GeneratedRegex(@"^(?:綁定\s*)?(?<code>[0-9A-Za-z]{6})$")]
     private static partial Regex BindingRegex();
+
+    /// <summary>日期：8/10、8-10 或 8月10日。</summary>
+    [GeneratedRegex(@"^(?<month>\d{1,2})(?:[/\-]|月)(?<day>\d{1,2})日?$")]
+    private static partial Regex EventDateRegex();
+
+    /// <summary>時間：14:00，可選結束時間 14:00-15:30。</summary>
+    [GeneratedRegex(@"^(?<hour>\d{1,2}):(?<minute>\d{2})(?:-(?<endHour>\d{1,2}):(?<endMinute>\d{2}))?$")]
+    private static partial Regex EventTimeRegex();
 }
