@@ -82,3 +82,6 @@ appsettings.Local.json
 
 #Customer 本機 AI 工具設定
 .claude/
+
+#Customer 內部串接規格，不上 GitHub
+docs/NestFlow_Dify_Claude_Context.md
