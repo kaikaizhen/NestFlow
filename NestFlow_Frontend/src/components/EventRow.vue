@@ -59,7 +59,24 @@ const isMultiDay = computed(
     <span class="row__bar" :style="{ backgroundColor: color }" aria-hidden="true" />
 
     <span class="row__body">
-      <span class="row__title">{{ event.title }}</span>
+      <span class="row__title-row">
+        <span class="row__title">{{ event.title }}</span>
+        <svg
+          v-if="event.hasReminder"
+          class="row__reminder-icon"
+          viewBox="0 0 24 24"
+          width="15"
+          height="15"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-label="已設定提醒"
+        >
+          <path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6M10.5 20a2 2 0 0 0 3 0" />
+        </svg>
+      </span>
       <span class="row__meta">
         <span>{{ timeRange }}</span>
         <span v-if="isMultiDay" class="row__tag">跨日</span>
@@ -133,11 +150,24 @@ const isMultiDay = computed(
   min-width: 0;
 }
 
+.row__title-row {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-width: 0;
+}
+
 .row__title {
   overflow: hidden;
+  min-width: 0;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.row__reminder-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
 }
 
 .row__meta {

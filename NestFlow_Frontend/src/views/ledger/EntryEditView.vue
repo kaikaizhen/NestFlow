@@ -21,7 +21,7 @@ const CURRENCIES = ['TWD', 'USD', 'JPY', 'EUR', 'CNY']
 const route = useRoute()
 const router = useRouter()
 const { currentUser } = useAuth()
-const { active, load: loadWorkspaces } = useWorkspaces()
+const { active, workspaces, load: loadWorkspaces } = useWorkspaces()
 
 const entryId = computed(() => route.params.entryId as string | undefined)
 const isEditing = computed(() => Boolean(entryId.value))
@@ -33,6 +33,9 @@ const currency = ref('TWD')
 const category = ref('')
 const note = ref('')
 const occurredAtLocal = ref('')
+
+/** 要存放的資料空間。新增時可選，修改時固定為原本所屬的空間。 */
+const selectedWorkspaceId = ref('')
 
 const authorName = ref('')
 const categories = ref<Category[]>([])
@@ -48,7 +51,11 @@ const showAuthor = computed(
 )
 
 const canSave = computed(
-  () => Number(amount.value) > 0 && Boolean(category.value) && Boolean(occurredAtLocal.value),
+  () =>
+    Number(amount.value) > 0 &&
+    Boolean(category.value) &&
+    Boolean(occurredAtLocal.value) &&
+    Boolean(isEditing.value ? active.value : selectedWorkspaceId.value),
 )
 
 /** 切換收支時，原分類若不屬於新類型就改選第一個。 */
@@ -92,7 +99,9 @@ async function loadExisting() {
 }
 
 async function save() {
-  if (!canSave.value || !active.value) {
+  const workspaceId = isEditing.value ? active.value?.id : selectedWorkspaceId.value
+
+  if (!canSave.value || !workspaceId) {
     return
   }
 
@@ -100,7 +109,7 @@ async function save() {
   errorMessage.value = ''
 
   const payload: SaveAccountEntryPayload = {
-    workspaceId: active.value.id,
+    workspaceId,
     type: type.value,
     amount: Number(amount.value),
     currency: currency.value,
@@ -149,6 +158,7 @@ onMounted(async () => {
     } else {
       category.value = visibleCategories.value[0]?.code ?? ''
       occurredAtLocal.value = defaultOccurredAt()
+      selectedWorkspaceId.value = active.value?.id ?? workspaces.value[0]?.id ?? ''
     }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '載入失敗。'
@@ -167,6 +177,15 @@ onMounted(async () => {
     <p v-else-if="showAuthor" class="author">由 {{ authorName }} 建立</p>
 
     <form v-if="!isLoading" class="form" @submit.prevent="save">
+      <label v-if="!isEditing" class="field">
+        <span class="field__label">資料空間</span>
+        <select v-model="selectedWorkspaceId">
+          <option v-for="ws in workspaces" :key="ws.id" :value="ws.id">
+            {{ ws.name }}（{{ ws.type === 'family' ? '家庭' : '個人' }}）
+          </option>
+        </select>
+      </label>
+
       <div class="segment" role="radiogroup" aria-label="類型">
         <button
           type="button"
@@ -336,7 +355,8 @@ onMounted(async () => {
 }
 
 .amount__currency,
-.field input {
+.field input,
+.field select {
   min-height: 48px;
   padding: 0 var(--space-3);
   font: inherit;

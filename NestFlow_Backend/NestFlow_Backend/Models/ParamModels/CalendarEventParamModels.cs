@@ -20,4 +20,22 @@ public class SaveCalendarEventParamModel
 
     [Required(ErrorMessage = "請指定結束時間。")]
     public DateTimeOffset EndAt { get; set; }
+
+    /// <summary>是否需要提醒。</summary>
+    public bool WantsReminder { get; set; }
+
+    /// <summary>提前幾分鐘通知，只在 WantsReminder 為 true 時使用，只接受固定選單的值。</summary>
+    public int? ReminderMinutesBeforeStart { get; set; }
+
+    /// <summary>是否建立週期行程，只在新增時生效，修改行程時會被忽略。</summary>
+    public bool Repeat { get; set; }
+
+    /// <summary>count｜until｜forever，只在 Repeat 為 true 時使用。</summary>
+    public string? RepeatEndType { get; set; }
+
+    /// <summary>RepeatEndType 為 count 時的重複次數。</summary>
+    public int? RepeatCount { get; set; }
+
+    /// <summary>RepeatEndType 為 until 時的結束日期。</summary>
+    public DateTimeOffset? RepeatUntil { get; set; }
 }

@@ -63,9 +63,21 @@ public class ReminderDispatchService : IReminderDispatchService
         var sent = 0;
         var retrying = 0;
         var failed = 0;
+        var skipped = 0;
 
         foreach (var reminder in claimed)
         {
+            // 使用者關閉了提醒通知總開關：只略過發送並標記為終態，
+            // 不計入失敗或重試，重新開啟總開關後也不會補發這則過期的通知。
+            var user = await _userRepository.GetByIdAsync(reminder.UserId, cancellationToken);
+
+            if (user is null || !user.NotificationsEnabled)
+            {
+                reminder.Status = ReminderStatus.Skipped;
+                skipped++;
+                continue;
+            }
+
             var externalUserId = await ResolveRecipientAsync(reminder.UserId, cancellationToken);
 
             var delivered = externalUserId is not null
@@ -101,7 +113,7 @@ public class ReminderDispatchService : IReminderDispatchService
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new ReminderDispatchResult(claimed.Count, sent, retrying, failed);
+        return new ReminderDispatchResult(claimed.Count, sent, retrying, failed, skipped);
     }
 
     /// <summary>

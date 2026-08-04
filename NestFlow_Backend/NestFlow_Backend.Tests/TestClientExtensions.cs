@@ -43,5 +43,6 @@ public static class TestClientExtensions
         string DisplayName,
         Guid? DefaultWorkspaceId,
         string TimeZone,
-        bool IsLineLinked);
+        bool IsLineLinked,
+        bool NotificationsEnabled);
 }

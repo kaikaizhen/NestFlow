@@ -11,6 +11,12 @@ public class CalendarEvent
 
     public Guid WorkspaceId { get; set; }
 
+    /// <summary>
+    /// 週期行程系列的共用識別碼；同一系列所有場次都是同一個值。
+    /// 非週期行程為 null。規則只在建立時決定，建立後不可變更。
+    /// </summary>
+    public Guid? RecurrenceGroupId { get; set; }
+
     public string Title { get; set; } = string.Empty;
 
     public string? Description { get; set; }

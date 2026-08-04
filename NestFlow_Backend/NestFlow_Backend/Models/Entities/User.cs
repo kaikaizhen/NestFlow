@@ -18,6 +18,12 @@ public class User
     /// </summary>
     public string TimeZone { get; set; } = "Asia/Taipei";
 
+    /// <summary>
+    /// 提醒通知總開關。關閉時 Worker 只略過發送，行程上的個別提醒設定不受影響，
+    /// 重新開啟後不會補發已略過的過期通知。
+    /// </summary>
+    public bool NotificationsEnabled { get; set; } = true;
+
     public UserStatus Status { get; set; } = UserStatus.Active;
 
     public DateTimeOffset CreatedAt { get; set; }

@@ -145,6 +145,34 @@ public class ReminderTests : IClassFixture<NestFlowApiFactory>
     }
 
     [Fact]
+    public async Task 關閉提醒通知總開關_到期提醒應略過發送且不再補發()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("關閉總開關的人");
+        await CreateReminderAsync(client, workspaceId, "應被略過", TimeSpan.FromMinutes(30));
+
+        (await client.PutAsJsonAsync("/api/auth/me/notifications", new { enabled = false }))
+            .EnsureSuccessStatusCode();
+
+        _factory.Time.Offset = TimeSpan.FromHours(1);
+
+        var result = await DispatchAsync(client);
+
+        Assert.Equal(1, result.Claimed);
+        Assert.Equal(0, result.Sent);
+        Assert.Equal(1, result.Skipped);
+        Assert.Empty(_factory.Messaging.Pushes);
+
+        // 重新開啟總開關後，剛才被略過的通知也不會補發
+        (await client.PutAsJsonAsync("/api/auth/me/notifications", new { enabled = true }))
+            .EnsureSuccessStatusCode();
+
+        var second = await DispatchAsync(client);
+
+        Assert.Equal(0, second.Claimed);
+        Assert.Empty(_factory.Messaging.Pushes);
+    }
+
+    [Fact]
     public async Task 已發送的提醒_不可取消()
     {
         var (client, workspaceId) = await CreateUserWithWorkspaceAsync("想反悔的人");
@@ -296,5 +324,5 @@ public class ReminderTests : IClassFixture<NestFlowApiFactory>
         Guid CreatedByUserId,
         string CreatedByDisplayName);
 
-    private record DispatchResponse(int Claimed, int Sent, int Retrying, int Failed);
+    private record DispatchResponse(int Claimed, int Sent, int Retrying, int Failed, int Skipped);
 }

@@ -72,6 +72,8 @@ export interface CurrentUser {
   isLineMessagingLinked: boolean
   /** 後端是否已設定 Messaging Channel。未設定時不顯示綁定入口。 */
   isLineMessagingConfigured: boolean
+  /** 提醒通知總開關。關閉時所有到期提醒都只略過發送，不影響行程上的個別設定。 */
+  notificationsEnabled: boolean
 }
 
 export type WorkspaceType = 'personal' | 'family'
@@ -126,9 +128,16 @@ export interface CalendarEvent {
   description: string | null
   startAt: string
   endAt: string
+  hasReminder: boolean
+  /** 提前幾分鐘通知，只有 hasReminder 為 true 時才有值。 */
+  reminderMinutesBeforeStart: number | null
+  isRecurring: boolean
   createdByUserId: string
   createdByDisplayName: string
 }
+
+/** count：重複固定次數｜until：重複到指定日期｜forever：不設結束日（後端仍會限制在 2 年內）。 */
+export type RecurrenceEndType = 'count' | 'until' | 'forever'
 
 export interface SaveCalendarEventPayload {
   workspaceId: string
@@ -137,6 +146,15 @@ export interface SaveCalendarEventPayload {
   /** 帶時區的 ISO 字串，後端會轉為 UTC 保存。 */
   startAt: string
   endAt: string
+  wantsReminder: boolean
+  /** 提前幾分鐘通知，只在 wantsReminder 為 true 時需要。 */
+  reminderMinutesBeforeStart?: number | null
+  /** 是否建立週期行程，只在新增時生效。 */
+  repeat?: boolean
+  repeatEndType?: RecurrenceEndType
+  repeatCount?: number
+  /** 帶時區的 ISO 字串。 */
+  repeatUntil?: string
 }
 
 /** pending：等待發送｜sending：發送中｜sent：已發送｜failed：重試多次仍失敗 */
@@ -255,6 +273,13 @@ export const api = {
       body: JSON.stringify({ timeZone }),
     }),
 
+  /** 提醒通知總開關。關閉時到期提醒只略過發送，不影響行程上的個別設定。 */
+  updateNotifications: (enabled: boolean) =>
+    request<void>('/api/auth/me/notifications', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    }),
+
   listCategories: () => request<Category[]>('/api/account-entries/categories'),
 
   listEntries: (workspaceId: string, fromUtc: string, toUtc: string, limit?: number) =>
@@ -307,8 +332,13 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  /** 刪除單一場次（週期行程即為「僅此次取消」）。 */
   deleteEvent: (eventId: string) =>
     request<void>(`/api/calendar-events/${eventId}`, { method: 'DELETE' }),
+
+  /** 刪除整個週期系列中尚未發生的場次。非週期行程效果等同單筆刪除。 */
+  deleteEventSeries: (eventId: string) =>
+    request<void>(`/api/calendar-events/${eventId}/series`, { method: 'DELETE' }),
 
   /** 取得區間內的提醒，依觸發時間由早到晚排序。已取消的不會回傳。 */
   listReminders: (workspaceId: string, fromUtc: string, toUtc: string, limit?: number) =>

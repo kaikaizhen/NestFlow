@@ -95,10 +95,20 @@ public class CalendarEventsController : ControllerBase
         return Ok(_mapper.Map<CalendarEventViewModel>(dto));
     }
 
+    /// <summary>刪除單一場次（週期行程即為「僅此次取消」）。</summary>
     [HttpDelete("{eventId:guid}")]
     public async Task<IActionResult> Delete(Guid eventId, CancellationToken cancellationToken)
     {
         await _eventService.DeleteAsync(_currentUser.RequireUserId(), eventId, cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>刪除整個週期系列中尚未發生的場次。非週期行程效果等同單筆刪除。</summary>
+    [HttpDelete("{eventId:guid}/series")]
+    public async Task<IActionResult> DeleteSeries(Guid eventId, CancellationToken cancellationToken)
+    {
+        await _eventService.DeleteSeriesAsync(_currentUser.RequireUserId(), eventId, cancellationToken);
 
         return NoContent();
     }
@@ -112,6 +122,22 @@ public class CalendarEventsController : ControllerBase
             param.Title.Trim(),
             description,
             param.StartAt.ToUniversalTime(),
-            param.EndAt.ToUniversalTime());
+            param.EndAt.ToUniversalTime(),
+            param.WantsReminder,
+            param.ReminderMinutesBeforeStart,
+            param.Repeat ? ParseRecurrenceEndType(param.RepeatEndType) : null,
+            param.RepeatCount,
+            param.RepeatUntil?.ToUniversalTime());
+    }
+
+    private static CalendarRecurrenceEndType ParseRecurrenceEndType(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "count" => CalendarRecurrenceEndType.Count,
+            "until" => CalendarRecurrenceEndType.UntilDate,
+            "forever" => CalendarRecurrenceEndType.Forever,
+            _ => throw AppException.BadRequest("重複結束方式只能是 count、until 或 forever。"),
+        };
     }
 }

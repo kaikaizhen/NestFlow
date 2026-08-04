@@ -20,8 +20,16 @@ public interface ICalendarEventService
         SaveCalendarEventCommand command,
         CancellationToken cancellationToken);
 
-    /// <summary>軟刪除，資料保留於資料庫但不再出現於任何列表。</summary>
+    /// <summary>
+    /// 軟刪除單一場次（週期行程的「僅此次取消」）。資料保留於資料庫但不再出現於任何列表。
+    /// </summary>
     Task DeleteAsync(Guid userId, Guid eventId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// 刪除整個週期系列中尚未發生的場次；已過去的場次保留作為歷史紀錄。
+    /// 若該行程並非週期行程，效果等同 <see cref="DeleteAsync"/>。
+    /// </summary>
+    Task DeleteSeriesAsync(Guid userId, Guid eventId, CancellationToken cancellationToken);
 
     Task<List<CalendarEventDtoModel>> ListAsync(
         Guid userId,

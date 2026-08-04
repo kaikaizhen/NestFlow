@@ -128,6 +128,23 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// 更新提醒通知總開關。關閉時所有到期提醒都只略過發送，不影響行程上的個別提醒設定。
+    /// </summary>
+    [HttpPut("me/notifications")]
+    [RequireSession]
+    public async Task<IActionResult> UpdateNotifications(
+        [FromBody] UpdateNotificationsParamModel param,
+        CancellationToken cancellationToken)
+    {
+        await _authService.UpdateNotificationsEnabledAsync(
+            _currentUser.RequireUserId(),
+            param.Enabled,
+            cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>
     /// 取得 LINE 官方帳號資訊，讓使用者先加好友再綁定。
     /// 未設定 Messaging Channel 時回傳 204，前端改顯示手動說明。
     /// </summary>

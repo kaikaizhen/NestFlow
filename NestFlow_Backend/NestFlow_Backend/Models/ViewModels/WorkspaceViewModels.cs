@@ -52,6 +52,8 @@ public class CurrentUserViewModel
     public bool IsLineMessagingLinked { get; set; }
 
     public bool IsLineMessagingConfigured { get; set; }
+
+    public bool NotificationsEnabled { get; set; }
 }
 
 public class LineBotViewModel

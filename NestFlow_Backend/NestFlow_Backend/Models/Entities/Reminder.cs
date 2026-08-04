@@ -11,6 +11,12 @@ public class Reminder
 
     public Guid WorkspaceId { get; set; }
 
+    /// <summary>
+    /// 由行程建立的提醒會指向來源行程；使用者手動建立的自由提醒則為 null。
+    /// 一筆行程最多對應一筆未取消的提醒。
+    /// </summary>
+    public Guid? CalendarEventId { get; set; }
+
     public string Content { get; set; } = string.Empty;
 
     /// <summary>觸發時間，一律以 UTC 保存。</summary>
