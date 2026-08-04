@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -130,6 +131,22 @@ if (app.Environment.IsDevelopment())
 
     // 開發環境自動套用 Migration，讓資料表與程式碼保持同步。
     await MigrateDatabaseAsync(app);
+}
+
+// 部署在反向代理後面時（ASPNETCORE_FORWARDEDHEADERS_ENABLED=true），
+// 讓 ASP.NET Core 依 X-Forwarded-* 標頭還原真實的 Scheme／IP，直接執行時預設關閉不影響行為。
+if (builder.Configuration.GetValue("ASPNETCORE_FORWARDEDHEADERS_ENABLED", false))
+{
+    var forwardedHeadersOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    };
+
+    // 反向代理跑在另一個容器，位址不固定，信任範圍交由外層網路（Docker network／NAS 防火牆）把關
+    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+
+    app.UseForwardedHeaders(forwardedHeadersOptions);
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();

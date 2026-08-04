@@ -1,8 +1,11 @@
 /**
  * 後端 API 位址由環境變數提供，不寫死於程式碼。
  * 開發環境見 .env.development，容器部署由建置參數注入。
+ * 未設定時走同源，並自動帶上部署子路徑（反向代理掛在 /nestflow/ 時即為 /nestflow）。
  */
-export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+
+export const apiBaseUrl = configuredApiBaseUrl || import.meta.env.BASE_URL.replace(/\/+$/, '')
 
 /** 後端回傳的錯誤訊息。 */
 export class ApiError extends Error {
