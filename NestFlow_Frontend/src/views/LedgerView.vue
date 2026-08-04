@@ -137,38 +137,55 @@ useAutoRefresh(load)
       <h2 class="ledger__section-title">最近交易</h2>
     </div>
 
-    <p v-if="isLoading" class="ledger__hint">載入中…</p>
+    <div class="ledger__scroll">
+      <p v-if="isLoading" class="ledger__hint">載入中…</p>
 
-    <p v-else-if="!entries.length" class="ledger__hint">這個月還沒有記帳紀錄。</p>
+      <p v-else-if="!entries.length" class="ledger__hint">這個月還沒有記帳紀錄。</p>
 
-    <ul v-else class="ledger__list">
-      <li v-for="entry in entries" :key="entry.id">
-        <EntryRow
-          :entry="entry"
-          :category-label="categoryLabel(entry.category)"
-          :time-zone="timeZone"
-          :show-author="isFamilyWorkspace"
-          @select="openEntry"
-        />
-      </li>
-    </ul>
+      <ul v-else class="ledger__list">
+        <li v-for="entry in entries" :key="entry.id">
+          <EntryRow
+            :entry="entry"
+            :category-label="categoryLabel(entry.category)"
+            :time-zone="timeZone"
+            :show-author="isFamilyWorkspace"
+            @select="openEntry"
+          />
+        </li>
+      </ul>
+    </div>
 
-    <button class="ledger__create" type="button" @click="createEntry">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+    <button class="ledger__fab" type="button" aria-label="新增記帳" @click="createEntry">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
         <path d="M12 5v14M5 12h14" />
       </svg>
-      新增記帳
     </button>
   </section>
 </template>
 
 <style scoped>
 .ledger {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  /* 佔滿視窗並扣掉底部導航，讓月份與收支摘要固定、只有交易清單捲動 */
+  height: 100vh;
+  height: 100dvh;
   padding: calc(var(--space-6) + env(safe-area-inset-top)) var(--space-4)
-    calc(var(--nav-height) + var(--space-6) + env(safe-area-inset-bottom));
+    calc(var(--nav-height) + env(safe-area-inset-bottom));
+}
+
+.ledger__scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* flex 子項預設 min-height 為 auto，不歸零就不會出現捲軸 */
+  min-height: 0;
+  /* 捲到底時的留白，最後一筆才不會被浮動按鈕蓋住 */
+  padding-bottom: calc(var(--space-4) + 56px + var(--space-3));
+  overflow-y: auto;
 }
 
 .ledger__header {
@@ -247,21 +264,26 @@ useAutoRefresh(load)
   border-radius: var(--radius-md);
 }
 
-.ledger__create {
+/* 用 absolute 而非 fixed：頁面本身已是視窗高度且不捲動，效果相同，
+   但定位基準是內容欄而不是整個視窗，桌機時才會貼齊內容右緣；
+   也不會在頁面切換動畫（祖先有 transform）期間跳位。 */
+.ledger__fab {
+  position: absolute;
+  right: var(--space-4);
+  bottom: calc(var(--nav-height) + var(--space-4) + env(safe-area-inset-bottom));
   display: flex;
-  gap: var(--space-2);
   align-items: center;
   justify-content: center;
-  min-height: 56px;
-  margin-top: var(--space-1);
-  font-weight: 600;
+  width: 56px;
+  height: 56px;
   color: var(--color-surface);
   background-color: var(--color-accent);
   border-radius: var(--radius-full);
+  box-shadow: 0 6px 20px rgb(17 17 19 / 24%);
   transition: transform var(--duration-fast) var(--ease-out);
 }
 
-.ledger__create:active {
-  transform: scale(0.98);
+.ledger__fab:active {
+  transform: scale(0.94);
 }
 </style>

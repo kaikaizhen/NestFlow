@@ -433,23 +433,25 @@ useAutoRefresh(load)
       </button>
     </div>
 
-    <p v-if="isLoading" class="calendar__hint">載入中…</p>
+    <div class="calendar__scroll">
+      <p v-if="isLoading" class="calendar__hint">載入中…</p>
 
-    <p v-else-if="!visibleEvents.length" class="calendar__hint">{{ emptyText }}</p>
+      <p v-else-if="!visibleEvents.length" class="calendar__hint">{{ emptyText }}</p>
 
-    <ul v-else class="calendar__list">
-      <li v-for="event in visibleEvents" :key="event.id">
-        <EventRow
-          :event="event"
-          :color="colorOf(event)"
-          :time-zone="timeZone"
-          :today-key="todayKey"
-          :tomorrow-key="tomorrowKey"
-          :show-author="isFamilyWorkspace"
-          @select="openEvent"
-        />
-      </li>
-    </ul>
+      <ul v-else class="calendar__list">
+        <li v-for="event in visibleEvents" :key="event.id">
+          <EventRow
+            :event="event"
+            :color="colorOf(event)"
+            :time-zone="timeZone"
+            :today-key="todayKey"
+            :tomorrow-key="tomorrowKey"
+            :show-author="isFamilyWorkspace"
+            @select="openEvent"
+          />
+        </li>
+      </ul>
+    </div>
 
     <button class="calendar__fab" type="button" aria-label="新增行程" @click="createEvent()">
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
@@ -461,11 +463,27 @@ useAutoRefresh(load)
 
 <style scoped>
 .calendar {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  /* 佔滿視窗並扣掉底部導航，讓月曆與篩選固定、只有行程清單捲動 */
+  height: 100vh;
+  height: 100dvh;
   padding: calc(var(--space-6) + env(safe-area-inset-top)) var(--space-4)
-    calc(var(--nav-height) + var(--space-6) + env(safe-area-inset-bottom));
+    calc(var(--nav-height) + env(safe-area-inset-bottom));
+}
+
+.calendar__scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* flex 子項預設 min-height 為 auto，不歸零就不會出現捲軸 */
+  min-height: 0;
+  /* 捲到底時的留白，最後一筆才不會被浮動按鈕蓋住 */
+  padding-bottom: calc(var(--space-4) + 56px + var(--space-3));
+  overflow-y: auto;
 }
 
 .calendar__header {
@@ -696,8 +714,11 @@ useAutoRefresh(load)
   border-radius: var(--radius-md);
 }
 
+/* 用 absolute 而非 fixed：頁面本身已是視窗高度且不捲動，效果相同，
+   但定位基準是內容欄而不是整個視窗，桌機時才會貼齊內容右緣；
+   也不會在頁面切換動畫（祖先有 transform）期間跳位。 */
 .calendar__fab {
-  position: fixed;
+  position: absolute;
   right: var(--space-4);
   bottom: calc(var(--nav-height) + var(--space-4) + env(safe-area-inset-bottom));
   display: flex;

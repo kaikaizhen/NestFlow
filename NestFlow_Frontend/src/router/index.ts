@@ -2,7 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuth } from '../stores/auth'
 
 /**
- * 底部導航的三個主頁面，以及設定底下的子頁面。
+ * 底部導航的四個主頁面，以及各自底下的子頁面。
  * meta.public 為 true 的路由不需登入。
  */
 const routes: RouteRecordRaw[] = [
@@ -33,6 +33,37 @@ const routes: RouteRecordRaw[] = [
     name: 'event-edit',
     component: () => import('../views/calendar/EventEditView.vue'),
     meta: { title: '編輯行程' },
+  },
+  {
+    path: '/life',
+    name: 'life',
+    component: () => import('../views/LifeView.vue'),
+    // 這一頁含待辦、購物與儲藏庫三個分頁，標題取三者的共同情境
+    meta: { title: '生活' },
+  },
+  {
+    path: '/life/todos/new',
+    name: 'todo-create',
+    component: () => import('../views/todos/TodoEditView.vue'),
+    meta: { title: '新增代辦' },
+  },
+  {
+    path: '/life/todos/:todoId/edit',
+    name: 'todo-edit',
+    component: () => import('../views/todos/TodoEditView.vue'),
+    meta: { title: '編輯代辦' },
+  },
+  {
+    path: '/life/storage/new',
+    name: 'storage-create',
+    component: () => import('../views/storage/StorageEditView.vue'),
+    meta: { title: '新增物品' },
+  },
+  {
+    path: '/life/storage/:itemId/edit',
+    name: 'storage-edit',
+    component: () => import('../views/storage/StorageEditView.vue'),
+    meta: { title: '編輯物品' },
   },
   {
     path: '/ledger',
