@@ -112,7 +112,9 @@ body {
   -webkit-font-smoothing: antialiased;
   /* 避免行動裝置上的雙擊縮放與點擊highlight，維持原生 App 手感 */
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: none;
+  /* 刻意不設 overscroll-behavior-y: none —— 該屬性會連帶關閉瀏覽器原生的
+     下拉重新整理手勢，是使用者回報「PWA 無法重整」的成因。保留預設 auto
+     讓下拉重新整理維持可用，行動瀏覽器上的彈跳感是可接受的取捨。 */
   transition: background-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out);
 }
 

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import AppMessage from '../components/AppMessage.vue'
 import EntryRow from '../components/EntryRow.vue'
 import SummaryCard from '../components/SummaryCard.vue'
+import { useAutoRefresh } from '../composables/useAutoRefresh'
 import {
   api,
   type AccountEntry,
@@ -100,6 +101,10 @@ onMounted(async () => {
 // 切換資料空間或月份時重新載入。
 // 從新增或編輯頁返回時本元件會重新掛載，因此 onMounted 已涵蓋重新整理。
 watch([active, year, month], load)
+
+// 家庭成員新增或修改記帳時，這裡不會即時收到通知，
+// 靠定時輪詢與切回頁面時補抓一次來縮短看到最新資料的延遲
+useAutoRefresh(load)
 </script>
 
 <template>

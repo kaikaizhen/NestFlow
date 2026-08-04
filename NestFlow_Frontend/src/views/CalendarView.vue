@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppMessage from '../components/AppMessage.vue'
 import EventRow from '../components/EventRow.vue'
+import { useAutoRefresh } from '../composables/useAutoRefresh'
 import { api, type CalendarEvent, type WorkspaceMember } from '../services/apiClient'
 import { useAuth } from '../stores/auth'
 import { useWorkspaces } from '../stores/workspace'
@@ -317,6 +318,10 @@ watch([active, year, month], load)
 watch(active, () => {
   selectedMemberId.value = null
 })
+
+// 家庭成員新增或修改行程時，這裡不會即時收到通知，
+// 靠定時輪詢與切回頁面時補抓一次來縮短看到最新資料的延遲
+useAutoRefresh(load)
 </script>
 
 <template>
