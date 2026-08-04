@@ -88,6 +88,25 @@ public enum ReminderStatus
     Sent,
     Failed,
     Cancelled,
+
+    /// <summary>
+    /// 到期時使用者已關閉「提醒通知」總開關，因此略過發送。
+    /// 屬終態，重新開啟總開關後不會補發，避免收到一堆過期通知。
+    /// </summary>
+    Skipped,
+}
+
+/// <summary>週期行程的結束方式。只在建立時使用，建立後規則不可變更。</summary>
+public enum CalendarRecurrenceEndType
+{
+    /// <summary>重複固定次數。</summary>
+    Count,
+
+    /// <summary>重複到指定日期為止。</summary>
+    UntilDate,
+
+    /// <summary>不設結束日，實作上仍會限制在 2 年內以避免無限生成。</summary>
+    Forever,
 }
 
 /// <summary>待確認動作的類型。</summary>

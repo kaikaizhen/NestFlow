@@ -3,7 +3,6 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppMessage from '../components/AppMessage.vue'
 import EventRow from '../components/EventRow.vue'
-import WorkspaceSwitcher from '../components/WorkspaceSwitcher.vue'
 import { api, type CalendarEvent, type WorkspaceMember } from '../services/apiClient'
 import { useAuth } from '../stores/auth'
 import { useWorkspaces } from '../stores/workspace'
@@ -55,11 +54,27 @@ const monthEvents = ref<CalendarEvent[]>([])
 const upcomingEvents = ref<CalendarEvent[]>([])
 const members = ref<WorkspaceMember[]>([])
 const rangeKey = ref<RangeKey>('upcoming')
+
+/** 點選月曆上的某一天時，畫面改為只顯示那一天的行程。 */
+const selectedDayKey = ref<string | null>(null)
+
+/** 家庭空間點選某位成員時，下方列表只顯示他建立的行程。 */
+const selectedMemberId = ref<string | null>(null)
+
 const isLoading = ref(true)
 const errorMessage = ref('')
 
 const monthLabel = computed(() => formatYearMonth(year.value, month.value))
 const isFamilyWorkspace = computed(() => active.value?.type === 'family')
+
+const selectedDayLabel = computed(() => {
+  if (!selectedDayKey.value) {
+    return ''
+  }
+
+  const [, m, d] = selectedDayKey.value.split('-').map(Number)
+  return `${m}月${d}日`
+})
 
 /** 家庭成員依加入順序配色，建立者為第一位。 */
 const memberColors = computed(
@@ -79,15 +94,24 @@ function colorOf(event: CalendarEvent) {
   return memberColors.value.get(event.createdByUserId) ?? eventColor(event.createdByUserId)
 }
 
-/** 家庭空間的成員色票，讓月曆上的圓點看得懂。 */
+/** 家庭空間的成員色票，讓月曆上的圓點看得懂，點選可篩選下方列表。 */
 const legend = computed(() =>
   isFamilyWorkspace.value
     ? members.value.map((member, index) => ({
+        id: member.userId,
         name: member.displayName,
         color: colorByIndex(index),
       }))
     : [],
 )
+
+function selectMember(memberId: string) {
+  selectedMemberId.value = selectedMemberId.value === memberId ? null : memberId
+}
+
+function matchesMember(event: CalendarEvent) {
+  return !selectedMemberId.value || event.createdByUserId === selectedMemberId.value
+}
 
 /** 每一天有哪些行程，供月曆顯示彩色標記。跨日行程會標記所有經過的日期。 */
 const marksByDay = computed(() => {
@@ -148,15 +172,39 @@ const cells = computed(() => {
   return result
 })
 
+/** 選定某一天時，從當月已載入的行程中篩選出當天（含跨日）的行程。 */
+const dayEvents = computed(() => {
+  if (!selectedDayKey.value) {
+    return []
+  }
+
+  const key = selectedDayKey.value
+
+  return monthEvents.value
+    .filter((event) => {
+      const startKey = dayKeyInZone(event.startAt, timeZone.value)
+      const endKey = dayKeyInZone(event.endAt, timeZone.value)
+
+      return startKey <= key && endKey >= key && matchesMember(event)
+    })
+    .sort((a, b) => a.startAt.localeCompare(b.startAt))
+})
+
 /** 依選取的區間過濾清單。今天與本週都以是否與該區間重疊判斷。 */
 const visibleEvents = computed(() => {
+  if (selectedDayKey.value) {
+    return dayEvents.value
+  }
+
+  const memberFiltered = upcomingEvents.value.filter(matchesMember)
+
   if (rangeKey.value === 'upcoming') {
-    return upcomingEvents.value.slice(0, UPCOMING_LIMIT)
+    return memberFiltered.slice(0, UPCOMING_LIMIT)
   }
 
   const limitKey = rangeKey.value === 'today' ? todayKey : weekEndKey.value
 
-  return upcomingEvents.value.filter((event) => {
+  return memberFiltered.filter((event) => {
     const startKey = dayKeyInZone(event.startAt, timeZone.value)
     const endKey = dayKeyInZone(event.endAt, timeZone.value)
 
@@ -165,6 +213,10 @@ const visibleEvents = computed(() => {
 })
 
 const emptyText = computed(() => {
+  if (selectedDayKey.value) {
+    return `${selectedDayLabel.value}沒有行程。`
+  }
+
   if (rangeKey.value === 'today') {
     return '今天沒有行程。'
   }
@@ -173,6 +225,8 @@ const emptyText = computed(() => {
 })
 
 function shiftMonth(delta: number) {
+  selectedDayKey.value = null
+
   const next = month.value + delta
 
   if (next < 1) {
@@ -184,6 +238,16 @@ function shiftMonth(delta: number) {
   } else {
     month.value = next
   }
+}
+
+function selectTab(key: RangeKey) {
+  selectedDayKey.value = null
+  rangeKey.value = key
+}
+
+/** 點月曆上的某一天：查看當天的行程，而不是直接跳去新增。 */
+function selectDay(dayKey: string) {
+  selectedDayKey.value = selectedDayKey.value === dayKey ? null : dayKey
 }
 
 async function load() {
@@ -227,9 +291,12 @@ function openEvent(event: CalendarEvent) {
   router.push({ name: 'event-edit', params: { eventId: event.id } })
 }
 
-/** 點月曆的某一天，就以那天為預設開始時間新增行程。 */
-function createEvent(dayKey?: string) {
-  router.push({ name: 'event-create', query: dayKey ? { day: dayKey } : undefined })
+/** 新增行程：若目前有選定日期就帶入當作預設開始時間。 */
+function createEvent() {
+  router.push({
+    name: 'event-create',
+    query: selectedDayKey.value ? { day: selectedDayKey.value } : undefined,
+  })
 }
 
 onMounted(async () => {
@@ -245,13 +312,17 @@ onMounted(async () => {
 // 切換資料空間或月份時重新載入。
 // 從新增或編輯頁返回時本元件會重新掛載，因此 onMounted 已涵蓋重新整理。
 watch([active, year, month], load)
+
+// 換資料空間時清掉成員篩選，避免帶著上一個空間的篩選條件
+watch(active, () => {
+  selectedMemberId.value = null
+})
 </script>
 
 <template>
   <section class="calendar">
     <header class="calendar__header">
       <h1 class="calendar__title">行事曆</h1>
-      <WorkspaceSwitcher />
     </header>
 
     <div class="calendar__month">
@@ -283,9 +354,9 @@ watch([active, year, month], load)
         <button
           v-else
           class="grid__cell"
-          :class="{ 'is-today': cell.key === todayKey }"
+          :class="{ 'is-today': cell.key === todayKey, 'is-selected': cell.key === selectedDayKey }"
           type="button"
-          @click="createEvent(cell.key)"
+          @click="selectDay(cell.key)"
         >
           <span class="grid__number">{{ cell.day }}</span>
           <span class="grid__marks">
@@ -300,21 +371,36 @@ watch([active, year, month], load)
       </template>
     </div>
 
-    <ul v-if="legend.length" class="legend">
-      <li v-for="member in legend" :key="member.name" class="legend__item">
-        <span class="legend__dot" :style="{ backgroundColor: member.color }" aria-hidden="true" />
-        {{ member.name }}
+    <ul v-if="legend.length" class="legend" role="group" aria-label="依成員篩選">
+      <li v-for="member in legend" :key="member.id">
+        <button
+          class="legend__item"
+          :class="{ 'is-active': selectedMemberId === member.id }"
+          type="button"
+          :aria-pressed="selectedMemberId === member.id"
+          @click="selectMember(member.id)"
+        >
+          <span class="legend__dot" :style="{ backgroundColor: member.color }" aria-hidden="true" />
+          {{ member.name }}
+        </button>
       </li>
     </ul>
 
-    <div class="tabs" role="tablist" aria-label="行程區間">
+    <div v-if="selectedDayKey" class="selected-day">
+      <span class="selected-day__label">{{ selectedDayLabel }}</span>
+      <button class="selected-day__clear" type="button" @click="selectedDayKey = null">
+        回到列表
+      </button>
+    </div>
+
+    <div v-else class="tabs" role="tablist" aria-label="行程區間">
       <button
         class="tabs__item"
         :class="{ 'is-active': rangeKey === 'today' }"
         type="button"
         role="tab"
         :aria-selected="rangeKey === 'today'"
-        @click="rangeKey = 'today'"
+        @click="selectTab('today')"
       >
         今天
       </button>
@@ -325,7 +411,7 @@ watch([active, year, month], load)
         type="button"
         role="tab"
         :aria-selected="rangeKey === 'week'"
-        @click="rangeKey = 'week'"
+        @click="selectTab('week')"
       >
         本週
       </button>
@@ -336,7 +422,7 @@ watch([active, year, month], load)
         type="button"
         role="tab"
         :aria-selected="rangeKey === 'upcoming'"
-        @click="rangeKey = 'upcoming'"
+        @click="selectTab('upcoming')"
       >
         即將到來
       </button>
@@ -471,6 +557,11 @@ watch([active, year, month], load)
   background-color: var(--color-accent);
 }
 
+.grid__cell.is-selected:not(.is-today) .grid__number {
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
 .grid__cell:active .grid__number {
   background-color: var(--color-border);
 }
@@ -494,7 +585,7 @@ watch([active, year, month], load)
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
+  gap: var(--space-2);
   margin: 0;
   padding: 0 var(--space-1);
   list-style: none;
@@ -504,14 +595,55 @@ watch([active, year, month], load)
   display: flex;
   gap: var(--space-2);
   align-items: center;
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
   font-size: var(--font-size-caption);
   color: var(--color-text-muted);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-full);
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.legend__item.is-active {
+  color: var(--color-text);
+  background-color: var(--color-border);
+  font-weight: 600;
+}
+
+.legend__item:active {
+  background-color: var(--color-border);
 }
 
 .legend__dot {
   width: 8px;
   height: 8px;
   border-radius: var(--radius-full);
+}
+
+.selected-day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+}
+
+.selected-day__label {
+  font-size: var(--font-size-title);
+  font-weight: 700;
+}
+
+.selected-day__clear {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-full);
+}
+
+.selected-day__clear:active {
+  background-color: var(--color-border);
 }
 
 .tabs {

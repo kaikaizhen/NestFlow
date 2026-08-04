@@ -243,6 +243,22 @@ public class WorkspaceTests : IClassFixture<NestFlowApiFactory>
     }
 
     [Fact]
+    public async Task 提醒通知總開關_預設開啟且可切換()
+    {
+        var client = _factory.CreateClient();
+        await client.LoginAsync(NewSubject(), "切換通知開關的使用者");
+
+        var before = await client.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
+        Assert.True(before!.NotificationsEnabled);
+
+        var response = await client.PutAsJsonAsync("/api/auth/me/notifications", new { enabled = false });
+        var after = await client.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.False(after!.NotificationsEnabled);
+    }
+
+    [Fact]
     public async Task 刪除預設資料空間後_應自動改指向其他可用空間()
     {
         var client = _factory.CreateClient();

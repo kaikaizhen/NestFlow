@@ -21,6 +21,11 @@ public interface IAuthService
     /// <summary>更新使用者時區。資料仍以 UTC 保存，此設定只影響顯示與月份切分。</summary>
     Task UpdateTimeZoneAsync(Guid userId, string timeZone, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// 更新提醒通知總開關。關閉時 Worker 只略過發送到期提醒，不影響行程上的個別提醒設定。
+    /// </summary>
+    Task UpdateNotificationsEnabledAsync(Guid userId, bool enabled, CancellationToken cancellationToken);
+
     /// <summary>產生身分綁定碼，供在 LINE 對話中輸入以綁定帳號。明文只回傳一次。</summary>
     Task<BindingCodeDtoModel> CreateBindingCodeAsync(Guid userId, CancellationToken cancellationToken);
 

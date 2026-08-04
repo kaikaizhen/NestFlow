@@ -77,4 +77,7 @@ public class CurrentUserDtoModel
 
     /// <summary>後端是否已設定 Messaging Channel。未設定時前端不顯示綁定入口。</summary>
     public bool IsLineMessagingConfigured { get; set; }
+
+    /// <summary>提醒通知總開關。關閉時所有到期提醒都只略過發送，不影響行程上的個別設定。</summary>
+    public bool NotificationsEnabled { get; set; }
 }

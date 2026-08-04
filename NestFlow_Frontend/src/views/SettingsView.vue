@@ -8,11 +8,30 @@ import SettingsGroup from '../components/SettingsGroup.vue'
 import SettingsRow from '../components/SettingsRow.vue'
 import { api, type Workspace } from '../services/apiClient'
 import { useAuth } from '../stores/auth'
+import { useTheme } from '../stores/theme'
 import { useWorkspaces } from '../stores/workspace'
 
 const router = useRouter()
-const { currentUser, logout } = useAuth()
+const { currentUser, refresh: refreshCurrentUser, logout } = useAuth()
 const { reset: resetWorkspaces } = useWorkspaces()
+const { preference, resolvedTheme, toggleDark } = useTheme()
+
+const notificationsEnabled = computed(() => currentUser.value?.notificationsEnabled ?? false)
+const isTogglingNotifications = ref(false)
+
+async function toggleNotifications() {
+  isTogglingNotifications.value = true
+  errorMessage.value = ''
+
+  try {
+    await api.updateNotifications(!notificationsEnabled.value)
+    await refreshCurrentUser()
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '更新失敗。'
+  } finally {
+    isTogglingNotifications.value = false
+  }
+}
 
 const workspaces = ref<Workspace[]>([])
 const errorMessage = ref('')
@@ -81,7 +100,12 @@ onMounted(load)
     </div>
 
     <SettingsGroup label="偏好設定">
-      <SettingsRow label="深色模式" :chevron="false">
+      <SettingsRow
+        label="深色模式"
+        :value="preference ? '' : '跟隨系統'"
+        :disabled="false"
+        :chevron="false"
+      >
         <template #icon>
           <svg
             viewBox="0 0 24 24"
@@ -99,10 +123,16 @@ onMounted(load)
         </template>
 
         <template #trailing>
-          <!-- 第一版只保留入口，樣式待後續版本實作 -->
-          <span class="toggle" aria-disabled="true">
+          <button
+            class="toggle"
+            :class="{ 'is-on': resolvedTheme === 'dark' }"
+            type="button"
+            role="switch"
+            :aria-checked="resolvedTheme === 'dark'"
+            @click="toggleDark"
+          >
             <span class="toggle__knob" />
-          </span>
+          </button>
         </template>
       </SettingsRow>
 
@@ -173,25 +203,37 @@ onMounted(load)
         </SettingsRow>
       </RouterLink>
 
-      <RouterLink class="link" :to="{ name: 'reminders' }">
-        <SettingsRow label="提醒通知" :disabled="false">
-          <template #icon>
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6M10.5 20a2 2 0 0 0 3 0" />
-            </svg>
-          </template>
-        </SettingsRow>
-      </RouterLink>
+      <SettingsRow label="提醒通知" :chevron="false">
+        <template #icon>
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6M10.5 20a2 2 0 0 0 3 0" />
+          </svg>
+        </template>
+
+        <template #trailing>
+          <button
+            class="toggle"
+            :class="{ 'is-on': notificationsEnabled }"
+            type="button"
+            role="switch"
+            :aria-checked="notificationsEnabled"
+            :disabled="isTogglingNotifications"
+            @click="toggleNotifications"
+          >
+            <span class="toggle__knob" />
+          </button>
+        </template>
+      </SettingsRow>
     </SettingsGroup>
 
     <SettingsGroup label="家庭">
@@ -354,6 +396,16 @@ onMounted(load)
   padding: 3px;
   background-color: var(--color-border);
   border-radius: var(--radius-full);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.toggle:disabled {
+  opacity: 0.6;
+}
+
+.toggle.is-on {
+  justify-content: flex-end;
+  background-color: var(--color-accent);
 }
 
 .toggle__knob {

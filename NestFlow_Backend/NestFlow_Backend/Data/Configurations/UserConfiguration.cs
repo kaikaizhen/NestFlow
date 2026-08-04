@@ -17,6 +17,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.PictureUrl).HasColumnName("picture_url").HasMaxLength(500);
         builder.Property(x => x.DefaultWorkspaceId).HasColumnName("default_workspace_id");
         builder.Property(x => x.TimeZone).HasColumnName("time_zone").HasMaxLength(64).IsRequired().HasDefaultValue("Asia/Taipei");
+        builder.Property(x => x.NotificationsEnabled).HasColumnName("notifications_enabled").IsRequired().HasDefaultValue(true);
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
     }

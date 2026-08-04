@@ -15,6 +15,7 @@ public class ReminderConfiguration : IEntityTypeConfiguration<Reminder>
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
         builder.Property(x => x.WorkspaceId).HasColumnName("workspace_id").IsRequired();
+        builder.Property(x => x.CalendarEventId).HasColumnName("calendar_event_id");
         builder.Property(x => x.Content).HasColumnName("content").HasMaxLength(200).IsRequired();
         builder.Property(x => x.TriggerAt).HasColumnName("trigger_at").IsRequired();
         builder.Property(x => x.NotificationProvider)
@@ -30,6 +31,17 @@ public class ReminderConfiguration : IEntityTypeConfiguration<Reminder>
         // PWA 依 Workspace 列出提醒
         builder.HasIndex(x => new { x.WorkspaceId, x.TriggerAt })
             .HasDatabaseName("ix_reminders_workspace_trigger");
+
+        // 一筆行程最多對應一筆未取消的提醒；篩選式索引讓多筆已取消的提醒不受此限制
+        builder.HasIndex(x => x.CalendarEventId)
+            .IsUnique()
+            .HasDatabaseName("ux_reminders_calendar_event_id")
+            .HasFilter("[calendar_event_id] IS NOT NULL AND [status] <> 'Cancelled'");
+
+        builder.HasOne<CalendarEvent>()
+            .WithMany()
+            .HasForeignKey(x => x.CalendarEventId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         builder.HasOne(x => x.Workspace)
             .WithMany()

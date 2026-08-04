@@ -26,6 +26,29 @@ public class ReminderRepository : IReminderRepository
             cancellationToken);
     }
 
+    public Task<Reminder?> GetByCalendarEventIdAsync(Guid calendarEventId, CancellationToken cancellationToken)
+    {
+        return _dbContext.Reminders.FirstOrDefaultAsync(
+            x => x.CalendarEventId == calendarEventId && x.Status != ReminderStatus.Cancelled,
+            cancellationToken);
+    }
+
+    public Task<List<Reminder>> ListByCalendarEventIdsAsync(
+        IReadOnlyCollection<Guid> calendarEventIds,
+        CancellationToken cancellationToken)
+    {
+        if (calendarEventIds.Count == 0)
+        {
+            return Task.FromResult(new List<Reminder>());
+        }
+
+        return _dbContext.Reminders
+            .Where(x => x.CalendarEventId != null
+                && calendarEventIds.Contains(x.CalendarEventId!.Value)
+                && x.Status != ReminderStatus.Cancelled)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<List<Reminder>> ListAsync(
         Guid workspaceId,
         DateTimeOffset fromUtc,

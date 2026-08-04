@@ -26,6 +26,16 @@ public class CalendarEventRepository : ICalendarEventRepository
             cancellationToken);
     }
 
+    public Task<List<CalendarEvent>> ListActiveBySeriesAsync(
+        Guid recurrenceGroupId,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.CalendarEvents
+            .Where(x => x.RecurrenceGroupId == recurrenceGroupId && x.Status == CalendarEventStatus.Active)
+            .OrderBy(x => x.StartAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<List<CalendarEvent>> ListAsync(
         Guid workspaceId,
         DateTimeOffset fromUtc,

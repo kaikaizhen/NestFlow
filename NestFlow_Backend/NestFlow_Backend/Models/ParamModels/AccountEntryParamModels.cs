@@ -33,3 +33,8 @@ public class UpdateTimeZoneParamModel
     [StringLength(64, MinimumLength = 1)]
     public string TimeZone { get; set; } = string.Empty;
 }
+
+public class UpdateNotificationsParamModel
+{
+    public bool Enabled { get; set; }
+}

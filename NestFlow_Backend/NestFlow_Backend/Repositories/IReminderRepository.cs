@@ -9,6 +9,14 @@ public interface IReminderRepository
     /// <summary>取得尚未取消的單筆提醒。</summary>
     Task<Reminder?> GetAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>取得某筆行程目前未取消的提醒，供行程編輯時建立、更新或取消提醒使用。</summary>
+    Task<Reminder?> GetByCalendarEventIdAsync(Guid calendarEventId, CancellationToken cancellationToken);
+
+    /// <summary>批次取得多筆行程各自未取消的提醒，供行程列表批次判斷是否有設提醒。</summary>
+    Task<List<Reminder>> ListByCalendarEventIdsAsync(
+        IReadOnlyCollection<Guid> calendarEventIds,
+        CancellationToken cancellationToken);
+
     /// <summary>依 Workspace 取得區間內的提醒，依觸發時間由早到晚排序。已取消的不列出。</summary>
     Task<List<Reminder>> ListAsync(
         Guid workspaceId,

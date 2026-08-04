@@ -15,6 +15,7 @@ public class CalendarEventConfiguration : IEntityTypeConfiguration<CalendarEvent
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
         builder.Property(x => x.WorkspaceId).HasColumnName("workspace_id").IsRequired();
+        builder.Property(x => x.RecurrenceGroupId).HasColumnName("recurrence_group_id");
         builder.Property(x => x.Title).HasColumnName("title").HasMaxLength(100).IsRequired();
         builder.Property(x => x.Description).HasColumnName("description").HasMaxLength(500);
         builder.Property(x => x.StartAt).HasColumnName("start_at").IsRequired();
@@ -25,6 +26,10 @@ public class CalendarEventConfiguration : IEntityTypeConfiguration<CalendarEvent
         // 依 Workspace 取區間內的行程是最主要的查詢方式
         builder.HasIndex(x => new { x.WorkspaceId, x.Status, x.StartAt })
             .HasDatabaseName("ix_calendar_events_workspace_status_start");
+
+        // 整系列更新／刪除時用來找出同系列的其他場次
+        builder.HasIndex(x => x.RecurrenceGroupId)
+            .HasDatabaseName("ix_calendar_events_recurrence_group");
 
         builder.HasOne(x => x.Workspace)
             .WithMany()

@@ -12,6 +12,12 @@ public class CalendarEventViewModel
 
     public DateTimeOffset EndAt { get; set; }
 
+    public bool HasReminder { get; set; }
+
+    public int? ReminderMinutesBeforeStart { get; set; }
+
+    public bool IsRecurring { get; set; }
+
     public Guid CreatedByUserId { get; set; }
 
     public string CreatedByDisplayName { get; set; } = string.Empty;

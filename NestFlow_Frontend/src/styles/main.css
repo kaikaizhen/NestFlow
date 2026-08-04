@@ -1,7 +1,8 @@
 /* ---------------------------------------------------------------
    NestFlow 設計權杖
-   極簡、明亮模式優先、黑白淺灰為主、大字體、大型點擊區。
-   深色模式第一版只保留設定入口，不提供樣式。
+   極簡、黑白淺灰為主、大字體、大型點擊區。
+   支援明亮與深色模式：預設跟隨系統設定，使用者可在設定頁手動覆蓋並記住選擇
+   （由 stores/theme.ts 寫入 <html data-theme="light|dark">）。
    --------------------------------------------------------------- */
 :root {
   --color-bg: #f7f7f8;
@@ -12,6 +13,11 @@
   --color-accent: #111113;
   --color-income: #16a34a;
   --color-expense: #dc2626;
+
+  /* 記帳分類圖示的底色（半透明疊在卡片色上，深色模式才不會過曝） */
+  --color-expense-tint: rgb(220 38 38 / 12%);
+  --color-income-tint: rgb(22 163 74 / 14%);
+  --color-neutral-tint: rgb(17 17 19 / 5%);
 
   --radius-sm: 12px;
   --radius-md: 16px;
@@ -41,6 +47,50 @@
   color-scheme: light;
 }
 
+/* 深色權杖。套用時機有兩種：
+   1) 系統為深色，且使用者沒有手動覆蓋成淺色（:not([data-theme="light"])）
+   2) 使用者在設定頁手動選擇深色（[data-theme="dark"]），不論系統設定為何 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-bg: #000000;
+    --color-surface: #1c1c1e;
+    --color-text: #f5f5f7;
+    --color-text-muted: #98989d;
+    --color-border: #2c2c2e;
+    --color-accent: #ffffff;
+    --color-income: #34d058;
+    --color-expense: #ff6b6b;
+
+    --color-expense-tint: rgb(255 107 107 / 16%);
+    --color-income-tint: rgb(52 208 88 / 16%);
+    --color-neutral-tint: rgb(255 255 255 / 8%);
+
+    /* 深色背景下陰影幾乎看不見，改靠 surface 比 bg 亮來表現層次 */
+    --shadow-card: none;
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --color-bg: #000000;
+  --color-surface: #1c1c1e;
+  --color-text: #f5f5f7;
+  --color-text-muted: #98989d;
+  --color-border: #2c2c2e;
+  --color-accent: #ffffff;
+  --color-income: #34d058;
+  --color-expense: #ff6b6b;
+
+  --color-expense-tint: rgb(255 107 107 / 16%);
+  --color-income-tint: rgb(52 208 88 / 16%);
+  --color-neutral-tint: rgb(255 255 255 / 8%);
+
+  --shadow-card: none;
+
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -63,6 +113,7 @@ body {
   /* 避免行動裝置上的雙擊縮放與點擊highlight，維持原生 App 手感 */
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+  transition: background-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out);
 }
 
 button {

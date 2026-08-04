@@ -247,6 +247,256 @@ public class CalendarEventTests : IClassFixture<NestFlowApiFactory>
     }
 
     // -----------------------------------------------------------
+    // Module 7：行程提醒整合
+    // -----------------------------------------------------------
+    [Fact]
+    public async Task 新增行程並開啟提醒_應建立對應的提醒()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("開提醒的人");
+
+        var created = await CreateEventWithReminderAsync(client, workspaceId, "開會", 30);
+
+        Assert.True(created.HasReminder);
+        Assert.Equal(30, created.ReminderMinutesBeforeStart);
+
+        var reminder = Assert.Single(await ListRemindersAsync(client, workspaceId));
+        Assert.Equal("開會", reminder.Content);
+        Assert.Equal(Start.AddMinutes(-30), reminder.TriggerAt);
+    }
+
+    [Fact]
+    public async Task 修改行程關閉提醒_應取消原有提醒()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("關提醒的人");
+        var created = await CreateEventWithReminderAsync(client, workspaceId, "開會", 30);
+
+        var response = await client.PutAsJsonAsync($"/api/calendar-events/{created.Id}", new
+        {
+            workspaceId,
+            title = "開會",
+            startAt = Start,
+            endAt = End,
+            wantsReminder = false,
+        });
+
+        var updated = await response.Content.ReadFromJsonAsync<EventResponse>();
+
+        Assert.False(updated!.HasReminder);
+        Assert.Empty(await ListRemindersAsync(client, workspaceId));
+    }
+
+    [Fact]
+    public async Task 刪除行程_應一併取消其提醒()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("刪行程連提醒的人");
+        var created = await CreateEventWithReminderAsync(client, workspaceId, "開會", 30);
+
+        (await client.DeleteAsync($"/api/calendar-events/{created.Id}")).EnsureSuccessStatusCode();
+
+        Assert.Empty(await ListRemindersAsync(client, workspaceId));
+    }
+
+    [Fact]
+    public async Task 不支援的提前通知分鐘數_應被拒絕()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("亂填提前時間的人");
+
+        var response = await client.PostAsJsonAsync("/api/calendar-events", new
+        {
+            workspaceId,
+            title = "開會",
+            startAt = Start,
+            endAt = End,
+            wantsReminder = true,
+            reminderMinutesBeforeStart = 7,
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // -----------------------------------------------------------
+    // Module 7：週期行程
+    // -----------------------------------------------------------
+    [Fact]
+    public async Task 建立週期行程_重複次數應產生對應場數()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("週期行程的人");
+
+        var response = await client.PostAsJsonAsync("/api/calendar-events", new
+        {
+            workspaceId,
+            title = "每週會議",
+            startAt = Start,
+            endAt = End,
+            repeat = true,
+            repeatEndType = "count",
+            repeatCount = 4,
+        });
+
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<EventResponse>();
+
+        Assert.True(created!.IsRecurring);
+
+        // 查詢橫跨 4 週的區間，應看到全部 4 場
+        var events = await ListAsync(client, workspaceId, MonthFrom, MonthTo.AddDays(28));
+
+        Assert.Equal(4, events.Count(x => x.Title == "每週會議"));
+    }
+
+    [Fact]
+    public async Task 週期行程重複結束日超過兩年_應被拒絕()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("結束日填太遠的人");
+
+        var response = await client.PostAsJsonAsync("/api/calendar-events", new
+        {
+            workspaceId,
+            title = "太久的重複",
+            startAt = Start,
+            endAt = End,
+            repeat = true,
+            repeatEndType = "until",
+            repeatUntil = Start.AddDays(800),
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task 修改週期行程_應同步更新未來場次但不影響過去場次()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("改週期行程的人");
+
+        // 第一場落在 10 天前，往後每 7 天一場：第 1 場已過去，其餘 3 場尚未發生。
+        // 刻意與「現在」保持數天的安全距離，避免測試執行時的些微延遲造成邊界誤判。
+        var now = DateTimeOffset.UtcNow;
+        var pastStart = now.AddDays(-10);
+        var pastEnd = pastStart.AddHours(1);
+
+        var createResponse = await client.PostAsJsonAsync("/api/calendar-events", new
+        {
+            workspaceId,
+            title = "原標題",
+            startAt = pastStart,
+            endAt = pastEnd,
+            repeat = true,
+            repeatEndType = "count",
+            repeatCount = 4,
+        });
+
+        createResponse.EnsureSuccessStatusCode();
+
+        var events = (await ListAsync(client, workspaceId, now.AddDays(-30), now.AddDays(30)))
+            .OrderBy(x => x.StartAt)
+            .ToList();
+
+        var futureOccurrence = events.First(x => x.StartAt >= now);
+
+        var response = await client.PutAsJsonAsync($"/api/calendar-events/{futureOccurrence.Id}", new
+        {
+            workspaceId,
+            title = "新標題",
+            startAt = futureOccurrence.StartAt.AddHours(1),
+            endAt = futureOccurrence.EndAt.AddHours(1),
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var refreshed = (await ListAsync(client, workspaceId, now.AddDays(-30), now.AddDays(30)))
+            .OrderBy(x => x.StartAt)
+            .ToList();
+
+        // 過去那場標題不變
+        Assert.Contains(refreshed, x => x.Title == "原標題" && x.StartAt < now);
+
+        // 未來場次全部改為新標題與新時間
+        Assert.All(refreshed.Where(x => x.StartAt >= now), x => Assert.Equal("新標題", x.Title));
+    }
+
+    [Fact]
+    public async Task 修改週期行程時變更日期_應被拒絕()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("想改日期的人");
+
+        var createResponse = await client.PostAsJsonAsync("/api/calendar-events", new
+        {
+            workspaceId,
+            title = "每週會議",
+            startAt = Start,
+            endAt = End,
+            repeat = true,
+            repeatEndType = "count",
+            repeatCount = 3,
+        });
+
+        var created = await createResponse.Content.ReadFromJsonAsync<EventResponse>();
+
+        var response = await client.PutAsJsonAsync($"/api/calendar-events/{created!.Id}", new
+        {
+            workspaceId,
+            title = "每週會議",
+            startAt = Start.AddDays(1),
+            endAt = End.AddDays(1),
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task 僅刪除此次_不應影響其他場次()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("跳過某一場的人");
+
+        var createResponse = await client.PostAsJsonAsync("/api/calendar-events", new
+        {
+            workspaceId,
+            title = "每週會議",
+            startAt = Start,
+            endAt = End,
+            repeat = true,
+            repeatEndType = "count",
+            repeatCount = 3,
+        });
+
+        var created = await createResponse.Content.ReadFromJsonAsync<EventResponse>();
+
+        (await client.DeleteAsync($"/api/calendar-events/{created!.Id}")).EnsureSuccessStatusCode();
+
+        var events = await ListAsync(client, workspaceId, MonthFrom, MonthTo.AddDays(28));
+
+        // 只少了被跳過的那一場，其餘兩場仍在
+        Assert.Equal(2, events.Count(x => x.Title == "每週會議"));
+    }
+
+    [Fact]
+    public async Task 刪除整個系列_應移除尚未發生的所有場次()
+    {
+        var (client, workspaceId) = await CreateUserWithWorkspaceAsync("刪整系列的人");
+
+        var createResponse = await client.PostAsJsonAsync("/api/calendar-events", new
+        {
+            workspaceId,
+            title = "每週會議",
+            startAt = Start,
+            endAt = End,
+            repeat = true,
+            repeatEndType = "count",
+            repeatCount = 3,
+        });
+
+        var created = await createResponse.Content.ReadFromJsonAsync<EventResponse>();
+
+        var response = await client.DeleteAsync($"/api/calendar-events/{created!.Id}/series");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var events = await ListAsync(client, workspaceId, MonthFrom, MonthTo.AddDays(28));
+
+        Assert.DoesNotContain(events, x => x.Title == "每週會議");
+    }
+
+    // -----------------------------------------------------------
     // 測試輔助
     // -----------------------------------------------------------
     private async Task<(HttpClient Client, Guid PersonalWorkspaceId)> CreateUserWithWorkspaceAsync(string name)
@@ -281,6 +531,36 @@ public class CalendarEventTests : IClassFixture<NestFlowApiFactory>
         return (await response.Content.ReadFromJsonAsync<EventResponse>())!;
     }
 
+    private static async Task<EventResponse> CreateEventWithReminderAsync(
+        HttpClient client,
+        Guid workspaceId,
+        string title,
+        int reminderMinutesBeforeStart)
+    {
+        var response = await client.PostAsJsonAsync("/api/calendar-events", new
+        {
+            workspaceId,
+            title,
+            startAt = Start,
+            endAt = End,
+            wantsReminder = true,
+            reminderMinutesBeforeStart,
+        });
+
+        response.EnsureSuccessStatusCode();
+
+        return (await response.Content.ReadFromJsonAsync<EventResponse>())!;
+    }
+
+    private static async Task<List<ReminderResponse>> ListRemindersAsync(HttpClient client, Guid workspaceId)
+    {
+        var from = Encode(Start.AddDays(-1));
+        var to = Encode(Start.AddDays(1));
+
+        return (await client.GetFromJsonAsync<List<ReminderResponse>>(
+            $"/api/reminders?workspaceId={workspaceId}&from={from}&to={to}"))!;
+    }
+
     private static async Task<List<EventResponse>> ListAsync(
         HttpClient client,
         Guid workspaceId,
@@ -306,6 +586,18 @@ public class CalendarEventTests : IClassFixture<NestFlowApiFactory>
         string? Description,
         DateTimeOffset StartAt,
         DateTimeOffset EndAt,
+        bool HasReminder,
+        int? ReminderMinutesBeforeStart,
+        bool IsRecurring,
+        Guid CreatedByUserId,
+        string CreatedByDisplayName);
+
+    private record ReminderResponse(
+        Guid Id,
+        string Content,
+        DateTimeOffset TriggerAt,
+        string Status,
+        int RetryCount,
         Guid CreatedByUserId,
         string CreatedByDisplayName);
 }

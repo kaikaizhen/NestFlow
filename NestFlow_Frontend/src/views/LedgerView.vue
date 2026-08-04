@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import AppMessage from '../components/AppMessage.vue'
 import EntryRow from '../components/EntryRow.vue'
 import SummaryCard from '../components/SummaryCard.vue'
-import WorkspaceSwitcher from '../components/WorkspaceSwitcher.vue'
 import {
   api,
   type AccountEntry,
@@ -107,7 +106,6 @@ watch([active, year, month], load)
   <section class="ledger">
     <header class="ledger__header">
       <h1 class="ledger__title">記帳</h1>
-      <WorkspaceSwitcher />
     </header>
 
     <div class="ledger__month">

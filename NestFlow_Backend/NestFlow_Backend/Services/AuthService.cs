@@ -165,7 +165,20 @@ public class AuthService : IAuthService
             IsLineLinked = identity is not null && identity.ChannelId != GlobalConstants.DevChannelId,
             IsLineMessagingLinked = isMessagingLinked,
             IsLineMessagingConfigured = _messagingOptions.IsConfigured,
+            NotificationsEnabled = user.NotificationsEnabled,
         };
+    }
+
+    public async Task UpdateNotificationsEnabledAsync(
+        Guid userId,
+        bool enabled,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userRepository.GetByIdAsync(userId, cancellationToken)
+            ?? throw AppException.Unauthorized();
+
+        user.NotificationsEnabled = enabled;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpdateTimeZoneAsync(Guid userId, string timeZone, CancellationToken cancellationToken)
