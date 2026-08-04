@@ -29,6 +29,9 @@ builder.Services.Configure<LineLoginOptions>(
 builder.Services.Configure<LineMessagingOptions>(
     builder.Configuration.GetSection(LineMessagingOptions.SectionName));
 
+builder.Services.Configure<DifyOptions>(
+    builder.Configuration.GetSection(DifyOptions.SectionName));
+
 builder.Services.Configure<NestFlow_Backend.Common.SessionOptions>(
     builder.Configuration.GetSection(NestFlow_Backend.Common.SessionOptions.SectionName));
 
@@ -74,6 +77,9 @@ builder.Services.AddScoped<ILineWebhookService, LineWebhookService>();
 
 builder.Services.AddHttpClient<ILineMessagingClient, LineMessagingClient>(client =>
     client.Timeout = TimeSpan.FromSeconds(10));
+
+builder.Services.AddHttpClient<IDifyClient, DifyClient>(client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
 
 // LINE Login 對外呼叫與 JWKS 快取
 builder.Services.AddHttpClient<ILineLoginClient, LineLoginClient>(client =>

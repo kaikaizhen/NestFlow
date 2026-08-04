@@ -23,5 +23,10 @@
   "Session": {
     "//RequireHttps": "本機以 HTTP 測試時設為 false，正式環境必須為 true。",
     "RequireHttps": false
+  },
+  "Dify": {
+    "//": "固定格式解析不出結果時的自然語言解析後援。留空時直接回覆既有用法提示，不影響固定格式記帳/排行程。",
+    "BaseUrl": "請填入 Dify Base URL，例如 http://100.64.195.42/v1",
+    "AppKey": "請填入 Dify App Key"
   }
 }

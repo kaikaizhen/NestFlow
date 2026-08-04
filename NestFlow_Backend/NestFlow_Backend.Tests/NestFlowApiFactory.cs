@@ -28,6 +28,9 @@ public class NestFlowApiFactory : WebApplicationFactory<Program>
     /// <summary>測試不對外呼叫 LINE，改以此假用戶端記錄推播內容供斷言。</summary>
     public FakeLineMessagingClient Messaging { get; } = new();
 
+    /// <summary>測試不對外呼叫 Dify，改以此假用戶端回傳事先設定的解析結果。</summary>
+    public FakeDifyClient Dify { get; } = new();
+
     /// <summary>可前移的時鐘，讓提醒測試不必真的等到觸發時間。</summary>
     public TestTimeProvider Time { get; } = new();
 
@@ -45,6 +48,8 @@ public class NestFlowApiFactory : WebApplicationFactory<Program>
                 ["LineLogin:ChannelId"] = "test-channel",
                 ["LineMessaging:ChannelId"] = "test-messaging-channel",
                 ["LineMessaging:ChannelSecret"] = TestChannelSecret,
+                ["Dify:BaseUrl"] = "http://dify.test/v1",
+                ["Dify:AppKey"] = "test-dify-app-key",
             });
         });
 
@@ -55,6 +60,9 @@ public class NestFlowApiFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<ILineMessagingClient>();
             services.AddSingleton<ILineMessagingClient>(Messaging);
+
+            services.RemoveAll<IDifyClient>();
+            services.AddSingleton<IDifyClient>(Dify);
 
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Time);
