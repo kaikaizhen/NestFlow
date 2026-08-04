@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import CalendarIcon from './icons/CalendarIcon.vue'
 import LedgerIcon from './icons/LedgerIcon.vue'
 import SettingsIcon from './icons/SettingsIcon.vue'
+import TodoIcon from './icons/TodoIcon.vue'
 
 interface NavItem {
   name: string
@@ -13,6 +14,7 @@ interface NavItem {
 
 const items: NavItem[] = [
   { name: 'calendar', label: '行事曆', icon: CalendarIcon },
+  { name: 'todos', label: '代辦', icon: TodoIcon },
   { name: 'ledger', label: '記帳', icon: LedgerIcon },
   { name: 'settings', label: '設定', icon: SettingsIcon },
 ]
@@ -50,7 +52,7 @@ const currentName = computed(() => route.name)
   max-width: 480px;
   margin-inline: auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   background-color: var(--color-surface);
   border-top: 1px solid var(--color-border);
   /* 讓導航列避開 iOS 底部 Home Indicator */

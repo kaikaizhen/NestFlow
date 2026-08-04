@@ -180,6 +180,33 @@ export interface SaveReminderPayload {
   triggerAt: string
 }
 
+/** general：一般代辦｜shopping：購物清單（多了數量欄位）。 */
+export type TodoType = 'general' | 'shopping'
+
+export interface Todo {
+  id: string
+  type: TodoType
+  title: string
+  /** 只有購物清單才有值，一般代辦一律為 null。 */
+  quantity: number | null
+  dueAt: string | null
+  /** null 代表未完成。 */
+  completedAt: string | null
+  isCompleted: boolean
+  createdByUserId: string
+  createdByDisplayName: string
+}
+
+export interface SaveTodoPayload {
+  workspaceId: string
+  type: TodoType
+  title: string
+  /** 只有購物清單需要，一般代辦後端會忽略。 */
+  quantity?: number | null
+  /** 帶時區的 ISO 字串，後端會轉為 UTC 保存。不設到期時間時傳 null。 */
+  dueAt?: string | null
+}
+
 export interface CurrencySummary {
   currency: string
   income: number
@@ -342,6 +369,39 @@ export const api = {
   /** 刪除整個週期系列中尚未發生的場次。非週期行程效果等同單筆刪除。 */
   deleteEventSeries: (eventId: string) =>
     request<void>(`/api/calendar-events/${eventId}/series`, { method: 'DELETE' }),
+
+  /**
+   * 取得指定類型的代辦。
+   * 未指定 completed 時同時回傳未完成與已完成，未完成排在前面。
+   */
+  listTodos: (workspaceId: string, type: TodoType, completed?: boolean) =>
+    request<Todo[]>(
+      `/api/todos?workspaceId=${workspaceId}&type=${type}` +
+        (completed === undefined ? '' : `&completed=${completed}`),
+    ),
+
+  getTodo: (todoId: string) => request<Todo>(`/api/todos/${todoId}`),
+
+  createTodo: (payload: SaveTodoPayload) =>
+    request<Todo>('/api/todos', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateTodo: (todoId: string, payload: SaveTodoPayload) =>
+    request<Todo>(`/api/todos/${todoId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  /** 標記完成或取消完成。列表上勾選不必送出整筆內容。 */
+  setTodoCompletion: (todoId: string, completed: boolean) =>
+    request<Todo>(`/api/todos/${todoId}/completion`, {
+      method: 'PATCH',
+      body: JSON.stringify({ completed }),
+    }),
+
+  deleteTodo: (todoId: string) => request<void>(`/api/todos/${todoId}`, { method: 'DELETE' }),
 
   /** 取得區間內的提醒，依觸發時間由早到晚排序。已取消的不會回傳。 */
   listReminders: (workspaceId: string, fromUtc: string, toUtc: string, limit?: number) =>

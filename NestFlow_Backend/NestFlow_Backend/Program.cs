@@ -65,6 +65,7 @@ builder.Services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
 builder.Services.AddScoped<IAccountEntryRepository, AccountEntryRepository>();
 builder.Services.AddScoped<ICalendarEventRepository, CalendarEventRepository>();
 builder.Services.AddScoped<IReminderRepository, ReminderRepository>();
+builder.Services.AddScoped<ITodoRepository, TodoRepository>();
 builder.Services.AddScoped<IMessagingRepository, MessagingRepository>();
 
 // Service 層
@@ -74,6 +75,7 @@ builder.Services.AddScoped<IAccountEntryService, AccountEntryService>();
 builder.Services.AddScoped<ICalendarEventService, CalendarEventService>();
 builder.Services.AddScoped<IReminderService, ReminderService>();
 builder.Services.AddScoped<IReminderDispatchService, ReminderDispatchService>();
+builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<ILineWebhookService, LineWebhookService>();
 
 builder.Services.AddHttpClient<ILineMessagingClient, LineMessagingClient>(client =>

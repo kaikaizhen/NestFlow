@@ -77,6 +77,23 @@ public enum CalendarEventStatus
     Deleted,
 }
 
+/// <summary>代辦類型。第一版只有一般代辦與購物清單。</summary>
+public enum TodoType
+{
+    General,
+    Shopping,
+}
+
+/// <summary>
+/// 代辦狀態。刪除採軟刪除，不從資料庫移除。
+/// 是否完成不放在這裡，改以 completed_at 是否有值表示，兩者互不影響。
+/// </summary>
+public enum TodoStatus
+{
+    Active,
+    Deleted,
+}
+
 /// <summary>
 /// 提醒狀態。Sending 是 Worker 取件後的暫時狀態，
 /// 讓多個 Worker 同時掃描時同一筆提醒只會有一個取得。

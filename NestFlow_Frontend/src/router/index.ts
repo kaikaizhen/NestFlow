@@ -2,7 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuth } from '../stores/auth'
 
 /**
- * 底部導航的三個主頁面，以及設定底下的子頁面。
+ * 底部導航的四個主頁面，以及各自底下的子頁面。
  * meta.public 為 true 的路由不需登入。
  */
 const routes: RouteRecordRaw[] = [
@@ -33,6 +33,24 @@ const routes: RouteRecordRaw[] = [
     name: 'event-edit',
     component: () => import('../views/calendar/EventEditView.vue'),
     meta: { title: '編輯行程' },
+  },
+  {
+    path: '/todos',
+    name: 'todos',
+    component: () => import('../views/TodosView.vue'),
+    meta: { title: '代辦' },
+  },
+  {
+    path: '/todos/new',
+    name: 'todo-create',
+    component: () => import('../views/todos/TodoEditView.vue'),
+    meta: { title: '新增代辦' },
+  },
+  {
+    path: '/todos/:todoId/edit',
+    name: 'todo-edit',
+    component: () => import('../views/todos/TodoEditView.vue'),
+    meta: { title: '編輯代辦' },
   },
   {
     path: '/ledger',
