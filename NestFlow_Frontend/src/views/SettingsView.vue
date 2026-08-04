@@ -276,8 +276,8 @@ onMounted(load)
               stroke-linejoin="round"
               aria-hidden="true"
             >
-              <circle cx="8.5" cy="12" r="3.5" />
-              <path d="M12 12h9M17.5 12v3M20 12v2.4" />
+              <circle cx="7.5" cy="7.5" r="3.3" />
+              <path d="M10 10 19 19M15.5 14.5 17.5 12.5M18 17 20 15" />
             </svg>
           </template>
         </SettingsRow>

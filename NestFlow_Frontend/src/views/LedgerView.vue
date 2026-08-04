@@ -258,6 +258,10 @@ useAutoRefresh(load)
   gap: 1px;
   margin: 0;
   padding: 0;
+  /* overflow 非 visible 的 flex 子項，min-height: auto 會解析為 0，
+     清單會被壓縮成剛好塞滿捲動容器而不是撐出高度，導致捲不動、
+     且塞不下的項目被直接裁掉。flex-shrink: 0 保住內容高度。 */
+  flex-shrink: 0;
   overflow: hidden;
   list-style: none;
   background-color: var(--color-border);

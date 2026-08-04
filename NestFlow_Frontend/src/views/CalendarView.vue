@@ -466,11 +466,14 @@ useAutoRefresh(load)
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  /* 佔滿視窗並扣掉底部導航，讓月曆與篩選固定、只有行程清單捲動 */
+  gap: var(--space-3);
+  /* 佔滿視窗並扣掉底部導航，讓月曆與篩選固定、只有行程清單捲動。
+     overflow: hidden 避免小螢幕上內容略微超出 100dvh 時外溢成整頁捲動
+     ——外溢應該被清單自己的 overflow-y: auto 吸收，而不是變成頁面捲動。 */
   height: 100vh;
   height: 100dvh;
-  padding: calc(var(--space-6) + env(safe-area-inset-top)) var(--space-4)
+  overflow: hidden;
+  padding: calc(var(--space-5) + env(safe-area-inset-top)) var(--space-4)
     calc(var(--nav-height) + env(safe-area-inset-bottom));
 }
 
@@ -479,10 +482,12 @@ useAutoRefresh(load)
   flex: 1;
   flex-direction: column;
   gap: var(--space-4);
-  /* flex 子項預設 min-height 為 auto，不歸零就不會出現捲軸 */
-  min-height: 0;
-  /* 捲到底時的留白，最後一筆才不會被浮動按鈕蓋住 */
-  padding-bottom: calc(var(--space-4) + 56px + var(--space-3));
+  /* 保底高度，小螢幕上方月曆與按鈕擠壓版面時，
+     清單至少保留可視與可捲動的高度 */
+  min-height: 88px;
+  /* 不再為浮動按鈕保留清單底部留白：小螢幕上空間本就緊繃，
+     寧可讓＋按鈕疊在最後一筆行程上，也不要讓清單少一大截可視高度。 */
+  padding-bottom: var(--space-4);
   overflow-y: auto;
 }
 
@@ -535,7 +540,7 @@ useAutoRefresh(load)
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: var(--space-1);
-  padding: var(--space-3) var(--space-2);
+  padding: var(--space-2);
   background-color: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
@@ -554,7 +559,7 @@ useAutoRefresh(load)
   gap: 3px;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
+  min-height: 38px;
   border-radius: var(--radius-sm);
 }
 
@@ -708,6 +713,12 @@ useAutoRefresh(load)
   gap: 1px;
   margin: 0;
   padding: 0;
+  /* 本元素同時是 .calendar__scroll（column flex）的子項，且設了 overflow: hidden。
+     依 flexbox 規範，overflow 非 visible 的 flex 子項，其 min-height: auto 會解析為 0，
+     於是清單會被壓縮成剛好塞滿容器、而不是撐出高度，捲動容器因此永遠沒有溢出內容
+     ——結果就是捲不動也沒有捲軸，且塞不下的行程被 overflow: hidden 直接裁掉。
+     flex-shrink: 0 讓清單保持內容高度，把溢出交還給 .calendar__scroll 處理。 */
+  flex-shrink: 0;
   overflow: hidden;
   list-style: none;
   background-color: var(--color-border);
