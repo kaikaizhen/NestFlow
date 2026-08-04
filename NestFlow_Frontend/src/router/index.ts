@@ -35,22 +35,35 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '編輯行程' },
   },
   {
-    path: '/todos',
-    name: 'todos',
-    component: () => import('../views/TodosView.vue'),
-    meta: { title: '代辦' },
+    path: '/life',
+    name: 'life',
+    component: () => import('../views/LifeView.vue'),
+    // 這一頁含待辦、購物與儲藏庫三個分頁，標題取三者的共同情境
+    meta: { title: '生活' },
   },
   {
-    path: '/todos/new',
+    path: '/life/todos/new',
     name: 'todo-create',
     component: () => import('../views/todos/TodoEditView.vue'),
     meta: { title: '新增代辦' },
   },
   {
-    path: '/todos/:todoId/edit',
+    path: '/life/todos/:todoId/edit',
     name: 'todo-edit',
     component: () => import('../views/todos/TodoEditView.vue'),
     meta: { title: '編輯代辦' },
+  },
+  {
+    path: '/life/storage/new',
+    name: 'storage-create',
+    component: () => import('../views/storage/StorageEditView.vue'),
+    meta: { title: '新增物品' },
+  },
+  {
+    path: '/life/storage/:itemId/edit',
+    name: 'storage-edit',
+    component: () => import('../views/storage/StorageEditView.vue'),
+    meta: { title: '編輯物品' },
   },
   {
     path: '/ledger',

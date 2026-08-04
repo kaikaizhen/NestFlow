@@ -1,28 +1,36 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AppMessage from '../components/AppMessage.vue'
+import StoragePanel from '../components/StoragePanel.vue'
 import TodoRow from '../components/TodoRow.vue'
 import { useAutoRefresh } from '../composables/useAutoRefresh'
 import { api, type Todo, type TodoType } from '../services/apiClient'
 import { useAuth } from '../stores/auth'
 import { useWorkspaces } from '../stores/workspace'
 
-const TABS: { type: TodoType; label: string }[] = [
-  { type: 'general', label: '待辦事項' },
-  { type: 'shopping', label: '購物清單' },
+/** 前兩個分頁是代辦的兩種類型，第三個是儲藏庫（資料模型完全不同，另以元件呈現）。 */
+type TabKey = TodoType | 'storage'
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'general', label: '待辦' },
+  { key: 'shopping', label: '購物' },
+  { key: 'storage', label: '儲藏庫' },
 ]
 
+const route = useRoute()
 const router = useRouter()
 const { currentUser } = useAuth()
 const { active, load: loadWorkspaces } = useWorkspaces()
 
 const timeZone = computed(() => currentUser.value?.timeZone || 'Asia/Taipei')
 
-const activeType = ref<TodoType>('general')
+const activeTab = ref<TabKey>(readTabFromQuery())
 const todos = ref<Todo[]>([])
 const isLoading = ref(true)
 const errorMessage = ref('')
+
+const isStorage = computed(() => activeTab.value === 'storage')
 
 // 家庭空間才需要區分是誰加的
 const isFamilyWorkspace = computed(() => active.value?.type === 'family')
@@ -31,11 +39,22 @@ const pending = computed(() => todos.value.filter((t) => !t.isCompleted))
 const completed = computed(() => todos.value.filter((t) => t.isCompleted))
 
 const emptyText = computed(() =>
-  activeType.value === 'shopping' ? '購物清單是空的。' : '目前沒有待辦事項。',
+  activeTab.value === 'shopping' ? '購物清單是空的。' : '目前沒有待辦事項。',
 )
 
+/** 分頁記在網址上，從新增或編輯頁返回時才會回到原本那一頁。 */
+function readTabFromQuery(): TabKey {
+  const tab = route.query.tab
+
+  return tab === 'shopping' || tab === 'storage' ? tab : 'general'
+}
+
 async function load() {
-  if (!active.value) {
+  const workspace = active.value
+  const tab = activeTab.value
+
+  // 儲藏庫的資料由 StoragePanel 自行載入，這裡只負責代辦
+  if (!workspace || tab === 'storage') {
     return
   }
 
@@ -43,7 +62,7 @@ async function load() {
   errorMessage.value = ''
 
   try {
-    todos.value = await api.listTodos(active.value.id, activeType.value)
+    todos.value = await api.listTodos(workspace.id, tab)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '載入失敗。'
   } finally {
@@ -80,8 +99,14 @@ function openTodo(todo: Todo) {
   router.push({ name: 'todo-edit', params: { todoId: todo.id } })
 }
 
-function createTodo() {
-  router.push({ name: 'todo-create', query: { type: activeType.value } })
+/** 浮動按鈕依目前分頁決定要新增代辦還是儲藏庫物品。 */
+function create() {
+  if (isStorage.value) {
+    router.push({ name: 'storage-create' })
+    return
+  }
+
+  router.push({ name: 'todo-create', query: { type: activeTab.value } })
 }
 
 onMounted(async () => {
@@ -96,7 +121,12 @@ onMounted(async () => {
 
 // 切換資料空間或分頁時重新載入。
 // 從新增或編輯頁返回時本元件會重新掛載，因此 onMounted 已涵蓋重新整理。
-watch([active, activeType], load)
+watch([active, activeTab], load)
+
+// 分頁狀態同步到網址，重新整理或從子頁返回時才不會跳回第一個分頁
+watch(activeTab, (tab) => {
+  router.replace({ query: tab === 'general' ? {} : { tab } })
+})
 
 // 家庭成員新增或完成代辦時，這裡不會即時收到通知，
 // 靠定時輪詢與切回頁面時補抓一次來縮短看到最新資料的延遲
@@ -104,51 +134,39 @@ useAutoRefresh(load)
 </script>
 
 <template>
-  <section class="todos">
-    <header class="todos__header">
-      <h1 class="todos__title">代辦</h1>
+  <section class="life">
+    <header class="life__header">
+      <h1 class="life__title">生活</h1>
     </header>
 
-    <div class="tabs" role="tablist" aria-label="代辦類型">
+    <div class="tabs" role="tablist" aria-label="待辦、購物與儲藏庫">
       <button
         v-for="tab in TABS"
-        :key="tab.type"
+        :key="tab.key"
         class="tabs__item"
-        :class="{ 'is-active': activeType === tab.type }"
+        :class="{ 'is-active': activeTab === tab.key }"
         type="button"
         role="tab"
-        :aria-selected="activeType === tab.type"
-        @click="activeType = tab.type"
+        :aria-selected="activeTab === tab.key"
+        @click="activeTab = tab.key"
       >
         {{ tab.label }}
       </button>
     </div>
 
-    <AppMessage :text="errorMessage" tone="error" />
+    <StoragePanel v-if="isStorage" :workspace="active" />
 
-    <div class="todos__scroll">
-      <p v-if="isLoading" class="todos__hint">載入中…</p>
+    <template v-else>
+      <AppMessage :text="errorMessage" tone="error" />
 
-      <template v-else>
-        <p v-if="!todos.length" class="todos__hint">{{ emptyText }}</p>
+      <div class="life__scroll">
+        <p v-if="isLoading" class="life__hint">載入中…</p>
 
-        <ul v-if="pending.length" class="todos__list">
-          <li v-for="todo in pending" :key="todo.id">
-            <TodoRow
-              :todo="todo"
-              :time-zone="timeZone"
-              :show-author="isFamilyWorkspace"
-              @select="openTodo"
-              @toggle="toggle"
-            />
-          </li>
-        </ul>
+        <template v-else>
+          <p v-if="!todos.length" class="life__hint">{{ emptyText }}</p>
 
-        <template v-if="completed.length">
-          <h2 class="todos__section">已完成（{{ completed.length }}）</h2>
-
-          <ul class="todos__list">
-            <li v-for="todo in completed" :key="todo.id">
+          <ul v-if="pending.length" class="life__list">
+            <li v-for="todo in pending" :key="todo.id">
               <TodoRow
                 :todo="todo"
                 :time-zone="timeZone"
@@ -158,11 +176,32 @@ useAutoRefresh(load)
               />
             </li>
           </ul>
-        </template>
-      </template>
-    </div>
 
-    <button class="todos__fab" type="button" aria-label="新增代辦" @click="createTodo">
+          <template v-if="completed.length">
+            <h2 class="life__section">已完成（{{ completed.length }}）</h2>
+
+            <ul class="life__list">
+              <li v-for="todo in completed" :key="todo.id">
+                <TodoRow
+                  :todo="todo"
+                  :time-zone="timeZone"
+                  :show-author="isFamilyWorkspace"
+                  @select="openTodo"
+                  @toggle="toggle"
+                />
+              </li>
+            </ul>
+          </template>
+        </template>
+      </div>
+    </template>
+
+    <button
+      class="life__fab"
+      type="button"
+      :aria-label="isStorage ? '新增物品' : '新增代辦'"
+      @click="create"
+    >
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
         <path d="M12 5v14M5 12h14" />
       </svg>
@@ -171,7 +210,7 @@ useAutoRefresh(load)
 </template>
 
 <style scoped>
-.todos {
+.life {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -183,7 +222,7 @@ useAutoRefresh(load)
     calc(var(--nav-height) + env(safe-area-inset-bottom));
 }
 
-.todos__scroll {
+.life__scroll {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -195,14 +234,14 @@ useAutoRefresh(load)
   overflow-y: auto;
 }
 
-.todos__header {
+.life__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
 }
 
-.todos__title {
+.life__title {
   margin: 0;
   font-size: var(--font-size-page-title);
   font-weight: 700;
@@ -211,7 +250,7 @@ useAutoRefresh(load)
 
 .tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-1);
   padding: var(--space-1);
   background-color: var(--color-surface);
@@ -233,14 +272,14 @@ useAutoRefresh(load)
   background-color: var(--color-accent);
 }
 
-.todos__section {
+.life__section {
   margin: var(--space-1) 0 0;
   font-size: var(--font-size-caption);
   font-weight: 600;
   color: var(--color-text-muted);
 }
 
-.todos__hint {
+.life__hint {
   margin: 0;
   padding: var(--space-5);
   font-size: var(--font-size-caption);
@@ -250,7 +289,7 @@ useAutoRefresh(load)
   border-radius: var(--radius-md);
 }
 
-.todos__list {
+.life__list {
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -265,7 +304,7 @@ useAutoRefresh(load)
 /* 用 absolute 而非 fixed：頁面本身已是視窗高度且不捲動，效果相同，
    但定位基準是內容欄而不是整個視窗，桌機時才會貼齊內容右緣；
    也不會在頁面切換動畫（祖先有 transform）期間跳位。 */
-.todos__fab {
+.life__fab {
   position: absolute;
   right: var(--space-4);
   bottom: calc(var(--nav-height) + var(--space-4) + env(safe-area-inset-bottom));
@@ -281,7 +320,7 @@ useAutoRefresh(load)
   transition: transform var(--duration-fast) var(--ease-out);
 }
 
-.todos__fab:active {
+.life__fab:active {
   transform: scale(0.94);
 }
 </style>

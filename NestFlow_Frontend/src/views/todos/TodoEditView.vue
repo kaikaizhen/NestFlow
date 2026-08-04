@@ -78,6 +78,14 @@ async function loadExisting() {
   dueAtLocal.value = found.dueAt ? isoToLocalInput(found.dueAt, timeZone.value) : ''
 }
 
+/** 儲存或刪除後回到原本的分頁，而不是一律跳回待辦分頁。 */
+function backToList() {
+  return router.replace({
+    name: 'life',
+    query: type.value === 'general' ? {} : { tab: type.value },
+  })
+}
+
 async function save() {
   const workspaceId = isEditing.value ? active.value?.id : selectedWorkspaceId.value
 
@@ -103,7 +111,7 @@ async function save() {
       await api.createTodo(payload)
     }
 
-    await router.replace({ name: 'todos' })
+    await backToList()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '儲存失敗。'
   } finally {
@@ -120,7 +128,7 @@ async function remove() {
 
   try {
     await api.deleteTodo(todoId.value)
-    await router.replace({ name: 'todos' })
+    await backToList()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '刪除失敗。'
   }

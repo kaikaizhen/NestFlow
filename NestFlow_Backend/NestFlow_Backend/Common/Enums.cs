@@ -126,6 +126,13 @@ public enum CalendarRecurrenceEndType
     Forever,
 }
 
+/// <summary>儲藏庫物品狀態。刪除採軟刪除，不從資料庫移除。</summary>
+public enum StorageItemStatus
+{
+    Active,
+    Deleted,
+}
+
 /// <summary>待確認動作的類型。</summary>
 public enum PendingActionType
 {

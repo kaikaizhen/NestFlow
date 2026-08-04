@@ -14,7 +14,8 @@ interface NavItem {
 
 const items: NavItem[] = [
   { name: 'calendar', label: '行事曆', icon: CalendarIcon },
-  { name: 'todos', label: '代辦', icon: TodoIcon },
+  // 這一頁含待辦、購物與儲藏庫，命名取三者的共同情境而非其中之一
+  { name: 'life', label: '生活', icon: TodoIcon },
   { name: 'ledger', label: '記帳', icon: LedgerIcon },
   { name: 'settings', label: '設定', icon: SettingsIcon },
 ]

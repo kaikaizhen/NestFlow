@@ -207,6 +207,23 @@ export interface SaveTodoPayload {
   dueAt?: string | null
 }
 
+export interface StorageItem {
+  id: string
+  name: string
+  location: string
+  note: string | null
+  updatedAt: string
+  createdByUserId: string
+  createdByDisplayName: string
+}
+
+export interface SaveStorageItemPayload {
+  workspaceId: string
+  name: string
+  location: string
+  note: string | null
+}
+
 export interface CurrencySummary {
   currency: string
   income: number
@@ -402,6 +419,33 @@ export const api = {
     }),
 
   deleteTodo: (todoId: string) => request<void>(`/api/todos/${todoId}`, { method: 'DELETE' }),
+
+  /**
+   * 取得最近更新的儲藏庫物品。
+   * 帶 keyword 時改為依物品名稱與存放位置搜尋，備註不列入比對。
+   */
+  listStorageItems: (workspaceId: string, keyword?: string) =>
+    request<StorageItem[]>(
+      `/api/storage-items?workspaceId=${workspaceId}` +
+        (keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''),
+    ),
+
+  getStorageItem: (itemId: string) => request<StorageItem>(`/api/storage-items/${itemId}`),
+
+  createStorageItem: (payload: SaveStorageItemPayload) =>
+    request<StorageItem>('/api/storage-items', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateStorageItem: (itemId: string, payload: SaveStorageItemPayload) =>
+    request<StorageItem>(`/api/storage-items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteStorageItem: (itemId: string) =>
+    request<void>(`/api/storage-items/${itemId}`, { method: 'DELETE' }),
 
   /** 取得區間內的提醒，依觸發時間由早到晚排序。已取消的不會回傳。 */
   listReminders: (workspaceId: string, fromUtc: string, toUtc: string, limit?: number) =>
