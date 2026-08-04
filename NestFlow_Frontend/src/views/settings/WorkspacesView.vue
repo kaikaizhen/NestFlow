@@ -6,9 +6,11 @@ import AppButton from '../../components/AppButton.vue'
 import AppMessage from '../../components/AppMessage.vue'
 import { api, type Workspace, type WorkspaceType } from '../../services/apiClient'
 import { useAuth } from '../../stores/auth'
+import { useWorkspaces } from '../../stores/workspace'
 
 const router = useRouter()
-const { setDefaultWorkspaceId } = useAuth()
+const { setDefaultWorkspaceId, refresh: refreshCurrentUser } = useAuth()
+const { load: reloadActiveWorkspace } = useWorkspaces()
 
 const workspaces = ref<Workspace[]>([])
 const isLoading = ref(true)
@@ -17,6 +19,8 @@ const errorMessage = ref('')
 const isCreating = ref(false)
 const newName = ref('')
 const newType = ref<WorkspaceType>('family')
+
+const deletingId = ref<string | null>(null)
 
 async function load() {
   isLoading.value = true
@@ -71,6 +75,33 @@ function openMembers(workspace: Workspace) {
   router.push({ name: 'workspace-members', params: { workspaceId: workspace.id } })
 }
 
+async function remove(workspace: Workspace) {
+  const confirmText = workspace.type === 'family'
+    ? `確定要刪除「${workspace.name}」嗎？所有成員將立即失去存取權，記帳與行程資料不會再顯示。`
+    : `確定要刪除「${workspace.name}」嗎？其中的記帳與行程資料不會再顯示。`
+
+  if (!window.confirm(confirmText)) {
+    return
+  }
+
+  deletingId.value = workspace.id
+  errorMessage.value = ''
+
+  try {
+    await api.deleteWorkspace(workspace.id)
+
+    // 後端可能已把使用者的預設資料空間改指向其他空間，這裡一併同步，
+    // 避免刪除後畫面仍顯示已不存在的預設值。
+    await refreshCurrentUser()
+    await reloadActiveWorkspace(true)
+    await load()
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '刪除失敗。'
+  } finally {
+    deletingId.value = null
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -102,6 +133,29 @@ onMounted(load)
           @click="openMembers(workspace)"
         >
           成員
+        </button>
+
+        <button
+          v-if="workspace.membershipType === 'owner'"
+          class="item__delete"
+          type="button"
+          aria-label="刪除資料空間"
+          :disabled="deletingId === workspace.id"
+          @click="remove(workspace)"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13" />
+          </svg>
         </button>
       </li>
     </ul>
@@ -207,6 +261,24 @@ onMounted(load)
   font-size: var(--font-size-caption);
   color: var(--color-text-muted);
   border-left: 1px solid var(--color-border);
+}
+
+.item__delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  color: var(--color-text-muted);
+  border-left: 1px solid var(--color-border);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.item__delete:active {
+  color: var(--color-expense);
+}
+
+.item__delete:disabled {
+  opacity: 0.5;
 }
 
 .hint {
