@@ -243,6 +243,64 @@ public class WorkspaceTests : IClassFixture<NestFlowApiFactory>
     }
 
     [Fact]
+    public async Task 刪除預設資料空間後_應自動改指向其他可用空間()
+    {
+        var client = _factory.CreateClient();
+        await client.LoginAsync(NewSubject(), "刪除預設空間的使用者");
+
+        // 首次登入自動建立「個人」並設為預設，這裡再建立第二個當作刪除後的備援
+        var familyId = await client.CreateWorkspaceAsync("我家", "family");
+        var meBefore = await client.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
+        var personalId = meBefore!.DefaultWorkspaceId!.Value;
+
+        var deleted = await client.DeleteAsync($"/api/workspaces/{personalId}");
+        var meAfter = await client.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
+
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal(familyId, meAfter!.DefaultWorkspaceId);
+    }
+
+    [Fact]
+    public async Task 刪除唯一的資料空間後_預設應變為null不留下懸空Id()
+    {
+        var client = _factory.CreateClient();
+        await client.LoginAsync(NewSubject(), "只有一個空間的使用者");
+
+        var me = await client.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
+        var personalId = me!.DefaultWorkspaceId!.Value;
+
+        var deleted = await client.DeleteAsync($"/api/workspaces/{personalId}");
+        var meAfter = await client.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
+        var workspaces = await client.GetFromJsonAsync<List<WorkspaceResponse>>("/api/workspaces");
+
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Null(meAfter!.DefaultWorkspaceId);
+        Assert.Empty(workspaces!);
+    }
+
+    [Fact]
+    public async Task 移除成員後_若原為其預設空間應自動改指向其他可用空間()
+    {
+        var (owner, workspaceId, code) = await CreateFamilyWithInvitationAsync();
+
+        var member = _factory.CreateClient();
+        await member.LoginAsync(NewSubject(), "被移除且設為預設的成員");
+        (await member.PostAsJsonAsync("/api/workspaces/join", new { code })).EnsureSuccessStatusCode();
+
+        var meBefore = await member.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
+        var memberPersonalId = meBefore!.DefaultWorkspaceId!.Value;
+
+        // 把預設改成剛加入的家庭空間，之後被移除時應偵測到並改回個人空間
+        await member.PutAsJsonAsync("/api/workspaces/default", new { workspaceId });
+
+        var removed = await owner.DeleteAsync($"/api/workspaces/{workspaceId}/members/{meBefore.Id}");
+        var meAfter = await member.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
+
+        Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
+        Assert.Equal(memberPersonalId, meAfter!.DefaultWorkspaceId);
+    }
+
+    [Fact]
     public async Task 建立資料空間時_只接受personal或family()
     {
         var client = _factory.CreateClient();

@@ -103,6 +103,9 @@ public class WorkspaceService : IWorkspaceService
         foreach (var member in members)
         {
             member.Status = MembershipStatus.Removed;
+
+            // 被刪除的若是某成員的預設資料空間，改指向其他可用空間，避免懸空
+            await ReassignDefaultIfNeededAsync(member.UserId, workspaceId, cancellationToken);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -249,12 +252,8 @@ public class WorkspaceService : IWorkspaceService
 
         target.Status = MembershipStatus.Removed;
 
-        // 被移除的成員若以此為預設資料空間，一併清除
-        var targetUser = await _userRepository.GetByIdAsync(targetUserId, cancellationToken);
-        if (targetUser?.DefaultWorkspaceId == workspaceId)
-        {
-            targetUser.DefaultWorkspaceId = null;
-        }
+        // 被移除的成員若以此為預設資料空間，改指向其他可用空間，避免懸空
+        await ReassignDefaultIfNeededAsync(targetUserId, workspaceId, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
@@ -273,6 +272,27 @@ public class WorkspaceService : IWorkspaceService
     public async Task EnsureMemberAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken)
     {
         await GetActiveMembershipOrNotFoundAsync(userId, workspaceId, cancellationToken);
+    }
+
+    /// <summary>
+    /// 若使用者目前的預設資料空間正是被排除的那個（已刪除或已被移除），
+    /// 改指向他仍可存取的其他空間；沒有其他空間時則清空，不留下懸空的 Id。
+    /// 以排除的 Id 直接比對，而不是依賴尚未提交的狀態變更，因此在同一次 SaveChanges 前呼叫也能正確運作。
+    /// </summary>
+    private async Task ReassignDefaultIfNeededAsync(
+        Guid userId,
+        Guid excludedWorkspaceId,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+
+        if (user is null || user.DefaultWorkspaceId != excludedWorkspaceId)
+        {
+            return;
+        }
+
+        var remaining = await _workspaceRepository.ListForUserAsync(userId, cancellationToken);
+        user.DefaultWorkspaceId = remaining.FirstOrDefault(w => w.Id != excludedWorkspaceId)?.Id;
     }
 
     public async Task<Guid> CreateDefaultPersonalWorkspaceAsync(Guid userId, CancellationToken cancellationToken)
