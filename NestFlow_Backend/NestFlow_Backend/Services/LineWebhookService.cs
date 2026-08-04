@@ -5,17 +5,20 @@ using NestFlow_Backend.Helpers;
 using NestFlow_Backend.Models.Dtos;
 using NestFlow_Backend.Models.Entities;
 using NestFlow_Backend.Repositories;
+using NestFlow_Backend.Services.External;
 
 namespace NestFlow_Backend.Services;
 
 /// <summary>
 /// LINE 固定格式記帳流程。
 /// 訊息只會產生待確認動作，使用者回覆「確認」後才真正寫入資料。
+/// 固定格式解析不出結果時，改呼叫 Dify Workflow 解析自然語言。
 /// </summary>
 public class LineWebhookService : ILineWebhookService
 {
     private const string SchemaVersion = "1.0";
     private const string WorkflowVersion = "fixed-format-v1";
+    private const string DifyWorkflowVersion = "dify-v1";
 
     /// <summary>待確認動作的有效期。</summary>
     private static readonly TimeSpan PendingLifetime = TimeSpan.FromMinutes(5);
@@ -34,9 +37,11 @@ public class LineWebhookService : ILineWebhookService
     private readonly ICalendarEventService _calendarService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IFixedFormatParser _parser;
+    private readonly IDifyClient _difyClient;
     private readonly ICryptoHelper _cryptoHelper;
     private readonly TimeProvider _timeProvider;
     private readonly LineMessagingOptions _options;
+    private readonly DifyOptions _difyOptions;
     private readonly ILogger<LineWebhookService> _logger;
 
     public LineWebhookService(
@@ -48,9 +53,11 @@ public class LineWebhookService : ILineWebhookService
         ICalendarEventService calendarService,
         IUnitOfWork unitOfWork,
         IFixedFormatParser parser,
+        IDifyClient difyClient,
         ICryptoHelper cryptoHelper,
         TimeProvider timeProvider,
         IOptions<LineMessagingOptions> options,
+        IOptions<DifyOptions> difyOptions,
         ILogger<LineWebhookService> logger)
     {
         _messagingRepository = messagingRepository;
@@ -61,9 +68,11 @@ public class LineWebhookService : ILineWebhookService
         _calendarService = calendarService;
         _unitOfWork = unitOfWork;
         _parser = parser;
+        _difyClient = difyClient;
         _cryptoHelper = cryptoHelper;
         _timeProvider = timeProvider;
         _options = options.Value;
+        _difyOptions = difyOptions.Value;
         _logger = logger;
     }
 
@@ -86,7 +95,7 @@ public class LineWebhookService : ILineWebhookService
 
         var reply = user is null
             ? await HandleUnboundAsync(message.ExternalUserId, command, cancellationToken)
-            : await HandleBoundAsync(user, command, cancellationToken);
+            : await HandleBoundAsync(user, message.Text, command, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -198,22 +207,76 @@ public class LineWebhookService : ILineWebhookService
     // -----------------------------------------------------------
     private async Task<string> HandleBoundAsync(
         User user,
+        string text,
         FixedCommand command,
         CancellationToken cancellationToken)
     {
         return command.Kind switch
         {
-            FixedCommandKind.Entry => await CreatePendingEntryAsync(user, command, cancellationToken),
-            FixedCommandKind.Event => await CreatePendingEventAsync(user, command, cancellationToken),
+            FixedCommandKind.Entry => await CreatePendingEntryAsync(user, command, WorkflowVersion, cancellationToken),
+            FixedCommandKind.Event => await CreatePendingEventAsync(user, command, WorkflowVersion, cancellationToken),
             FixedCommandKind.Confirm => await ConfirmAsync(user, cancellationToken),
             FixedCommandKind.Cancel => await CancelAsync(user, cancellationToken),
+            FixedCommandKind.None => await HandleUnparsedAsync(user, text, cancellationToken),
             _ => BuildUsageText(),
         };
+    }
+
+    /// <summary>
+    /// 固定格式解析不出結果時的退路：呼叫 Dify Workflow 解析自然語言。
+    /// Dify 未設定、呼叫失敗或結果無效時，安全退回既有用法提示。
+    /// </summary>
+    private async Task<string> HandleUnparsedAsync(User user, string text, CancellationToken cancellationToken)
+    {
+        var command = await TryParseWithDifyAsync(user, text, cancellationToken);
+
+        if (command is null)
+        {
+            return BuildUsageText();
+        }
+
+        return command.Kind switch
+        {
+            FixedCommandKind.Entry => await CreatePendingEntryAsync(user, command, DifyWorkflowVersion, cancellationToken),
+            FixedCommandKind.Event => await CreatePendingEventAsync(user, command, DifyWorkflowVersion, cancellationToken),
+            _ => BuildUsageText(),
+        };
+    }
+
+    private async Task<FixedCommand?> TryParseWithDifyAsync(
+        User user,
+        string text,
+        CancellationToken cancellationToken)
+    {
+        if (!_difyOptions.IsConfigured)
+        {
+            return null;
+        }
+
+        var zone = TimeZoneInfo.TryFindSystemTimeZoneById(user.TimeZone, out var found)
+            ? found
+            : TimeZoneInfo.Utc;
+        var nowLocal = TimeZoneInfo.ConvertTime(_timeProvider.GetUtcNow(), zone);
+
+        var request = new DifyParseRequest(
+            text,
+            nowLocal.ToString("yyyy-MM-dd"),
+            nowLocal.ToString("HH:mm"),
+            user.TimeZone,
+            DifyCategoryCatalog.ExpenseCategoriesJson,
+            DifyCategoryCatalog.IncomeCategoriesJson,
+            user.Id.ToString());
+
+        // Dify 只負責解析，不直接寫入資料庫；未知分類代碼、金額、日期時間與信心值一律由這裡驗證
+        var result = await _difyClient.ParseAsync(request, cancellationToken);
+
+        return DifyResultMapper.ToFixedCommand(result, _difyOptions.MinConfidence);
     }
 
     private async Task<string> CreatePendingEntryAsync(
         User user,
         FixedCommand command,
+        string workflowVersion,
         CancellationToken cancellationToken)
     {
         var (workspaceId, workspaceName, error) = await ResolveWorkspaceAsync(user, cancellationToken);
@@ -240,6 +303,7 @@ public class LineWebhookService : ILineWebhookService
                 ? PendingActionType.CreateExpense
                 : PendingActionType.CreateIncome,
             JsonSerializer.Serialize(payload),
+            workflowVersion,
             now,
             cancellationToken);
 
@@ -249,6 +313,7 @@ public class LineWebhookService : ILineWebhookService
     private async Task<string> CreatePendingEventAsync(
         User user,
         FixedCommand command,
+        string workflowVersion,
         CancellationToken cancellationToken)
     {
         var parsed = command.Event!;
@@ -273,6 +338,7 @@ public class LineWebhookService : ILineWebhookService
             workspaceId!.Value,
             PendingActionType.CreateCalendarEvent,
             JsonSerializer.Serialize(payload),
+            workflowVersion,
             now,
             cancellationToken);
 
@@ -312,6 +378,7 @@ public class LineWebhookService : ILineWebhookService
         Guid workspaceId,
         PendingActionType actionType,
         string payloadJson,
+        string workflowVersion,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
@@ -331,7 +398,7 @@ public class LineWebhookService : ILineWebhookService
                 ActionType = actionType,
                 PayloadJson = payloadJson,
                 SchemaVersion = SchemaVersion,
-                WorkflowVersion = WorkflowVersion,
+                WorkflowVersion = workflowVersion,
                 Status = PendingActionStatus.Pending,
                 ExpiresAt = now.Add(PendingLifetime),
                 CreatedAt = now,

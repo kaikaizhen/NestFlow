@@ -77,6 +77,12 @@ public static class CategoryKeywords
         ["利息"] = "investment",
     };
 
+    /// <summary>取得對應到某分類代碼的所有關鍵字，供 Dify Workflow 分類目錄使用。</summary>
+    public static IReadOnlyList<string> KeywordsFor(string code)
+    {
+        return Map.Where(kv => kv.Value == code).Select(kv => kv.Key).ToList();
+    }
+
     /// <summary>
     /// 解析關鍵字。回傳分類代碼，以及是否為推測（未命中對應表）。
     /// </summary>

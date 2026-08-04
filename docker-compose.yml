@@ -32,19 +32,27 @@ services:
       # 機密值一律由 .env 注入，不寫死於 compose 檔
       ConnectionStrings__NestFlowDb: "Server=sqlserver,1433;Database=NestFlow;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True"
       Encryption__Key: ${ENCRYPTION_KEY}
-      Cors__AllowedOrigins__0: "http://localhost:5173"
-      # 本機以 HTTP 測試，正式部署改為 true
-      Session__RequireHttps: "false"
+      # 預設值皆為「直接執行、不經反向代理」。部署在反向代理後面時，
+      # 在 .env 填對應變數即可覆蓋，不需要另一份 compose 檔。
+      Cors__AllowedOrigins__0: ${CORS_ORIGIN_0:-http://localhost:5173}
+      Cors__AllowedOrigins__1: ${CORS_ORIGIN_1:-}
+      # 本機以 HTTP 測試，正式部署經 HTTPS 反向代理時在 .env 設為 true
+      Session__RequireHttps: ${SESSION_REQUIRE_HTTPS:-false}
+      # 讓 ASP.NET Core 接受反向代理傳入的 X-Forwarded-* 標頭，直接執行時不需要
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${FORWARDED_HEADERS_ENABLED:-false}
       LineLogin__ChannelId: ${LINE_CHANNEL_ID:-}
       LineLogin__ChannelSecret: ${LINE_CHANNEL_SECRET:-}
-      LineLogin__CallbackUrl: "http://localhost:8080/api/auth/line/callback"
-      LineLogin__FrontendRedirectUrl: "http://localhost:5173/"
+      LineLogin__CallbackUrl: ${LINE_LOGIN_CALLBACK_URL:-http://localhost:8080/api/auth/line/callback}
+      LineLogin__FrontendRedirectUrl: ${LINE_LOGIN_FRONTEND_REDIRECT_URL:-http://localhost:5173/}
       # Messaging API Channel（未設定時 Webhook 停用，可改用 /api/dev/line 模擬端點）
       LineMessaging__ChannelId: ${LINE_MESSAGING_CHANNEL_ID:-}
       LineMessaging__ChannelSecret: ${LINE_MESSAGING_CHANNEL_SECRET:-}
       LineMessaging__ChannelAccessToken: ${LINE_MESSAGING_ACCESS_TOKEN:-}
+      # Dify Workflow：固定格式解析不出結果時的自然語言後援，未設定時直接回覆既有用法提示
+      Dify__BaseUrl: ${DIFY_BASE_URL:-}
+      Dify__AppKey: ${DIFY_APP_KEY:-}
     ports:
-      - "8080:8080"
+      - "${API_PORT:-8080}:8080"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -76,10 +84,13 @@ services:
     build:
       context: ./NestFlow_Frontend
       args:
-        VITE_API_BASE_URL: "http://localhost:8080"
+        # 瀏覽器實際呼叫的 API 位址，反向代理子路徑部署時在 .env 覆蓋
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+        # 部署子路徑，直接執行預設為根路徑；掛在反向代理子路徑時在 .env 改成例如 /nestflow/
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
     container_name: nestflow-pwa
     ports:
-      - "5173:80"
+      - "${PWA_PORT:-5173}:80"
     depends_on:
       api:
         condition: service_healthy
