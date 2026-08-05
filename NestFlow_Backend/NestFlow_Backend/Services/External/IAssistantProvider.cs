@@ -1,4 +1,4 @@
-namespace NestFlow_Backend.Assistants;
+namespace NestFlow_Backend.Services.External;
 
 /// <summary>
 /// 自然語言解析提供者。第一版唯一實作為 Module 8 的 DifyAssistantProvider。
