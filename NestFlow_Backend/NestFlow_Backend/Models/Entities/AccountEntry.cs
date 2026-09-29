@@ -29,7 +29,14 @@ public class AccountEntry
 
     public DateTimeOffset CreatedAt { get; set; }
 
+    /// <summary>家庭支出是否已透過本期結算完成。</summary>
+    public DateTimeOffset? SettledAt { get; set; }
+
+    public Guid? SettledByUserId { get; set; }
+
     public User? User { get; set; }
 
     public Workspace? Workspace { get; set; }
+
+    public ICollection<AccountEntryShare> Shares { get; set; } = [];
 }

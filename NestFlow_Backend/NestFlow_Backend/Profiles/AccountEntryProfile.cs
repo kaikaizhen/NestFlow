@@ -13,5 +13,6 @@ public class AccountEntryProfile : Profile
             .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString().ToLowerInvariant()));
 
         CreateMap<CurrencySummaryDtoModel, CurrencySummaryViewModel>();
+        CreateMap<AccountEntryShareDtoModel, AccountEntryShareViewModel>();
     }
 }

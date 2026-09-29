@@ -10,6 +10,8 @@ import {
   type Category,
   type EntryType,
   type SaveAccountEntryPayload,
+  type AccountEntryShare,
+  type WorkspaceMember,
 } from '../../services/apiClient'
 import { useAuth } from '../../stores/auth'
 import { useWorkspaces } from '../../stores/workspace'
@@ -33,6 +35,10 @@ const currency = ref('TWD')
 const category = ref('')
 const note = ref('')
 const occurredAtLocal = ref('')
+const paymentMode = ref<'full' | 'split'>('full')
+const shares = ref<AccountEntryShare[]>([])
+const members = ref<WorkspaceMember[]>([])
+const guestName = ref('')
 
 /** 要存放的資料空間。新增時可選，修改時固定為原本所屬的空間。 */
 const selectedWorkspaceId = ref('')
@@ -44,6 +50,10 @@ const isSaving = ref(false)
 const errorMessage = ref('')
 
 const visibleCategories = computed(() => categories.value.filter((c) => c.type === type.value))
+const workspaceIdForForm = computed(() => isEditing.value ? active.value?.id ?? '' : selectedWorkspaceId.value)
+const isFamilyExpense = computed(() =>
+  type.value === 'expense' && workspaces.value.find((x) => x.id === workspaceIdForForm.value)?.type === 'family',
+)
 
 // 家庭空間的既有記帳才需要標示是誰建立的
 const showAuthor = computed(
@@ -55,6 +65,10 @@ const canSave = computed(
     Number(amount.value) > 0 &&
     Boolean(category.value) &&
     Boolean(occurredAtLocal.value) &&
+    (paymentMode.value !== 'split' ||
+      (shares.value.length > 0 &&
+        Math.round(shares.value.reduce((sum, share) => sum + Number(share.amount || 0), 0) * 100) ===
+          Math.round(Number(amount.value || 0) * 100))) &&
     Boolean(isEditing.value ? active.value : selectedWorkspaceId.value),
 )
 
@@ -65,6 +79,77 @@ function switchType(next: EntryType) {
   if (!visibleCategories.value.some((c) => c.code === category.value)) {
     category.value = visibleCategories.value[0]?.code ?? ''
   }
+  if (next !== 'expense') paymentMode.value = 'full'
+}
+
+function defaultShares() {
+  const selected = shares.value.length
+    ? shares.value
+    : members.value.map((member) => ({ userId: member.userId, participantName: member.displayName, amount: 0 }))
+  const total = Number(amount.value) || 0
+  if (!selected.length) {
+    shares.value = []
+    return
+  }
+  const base = Math.floor((total / selected.length) * 100) / 100
+  const remainder = Math.round((total - base * selected.length) * 100) / 100
+  shares.value = selected.map((member, index) => ({
+    userId: member.userId,
+    participantName: member.participantName,
+    amount: index === 0 ? base + remainder : base,
+  }))
+}
+
+async function loadMembers() {
+  if (!isFamilyExpense.value || !workspaceIdForForm.value) {
+    members.value = []
+    return
+  }
+  members.value = await api.listMembers(workspaceIdForForm.value)
+}
+
+async function workspaceChanged() {
+  shares.value = []
+  paymentMode.value = 'full'
+  await loadMembers()
+}
+
+async function selectPaymentMode(mode: 'full' | 'split') {
+  paymentMode.value = mode
+  if (mode === 'split') {
+    await loadMembers()
+    if (!shares.value.length) defaultShares()
+  }
+}
+
+function isIncluded(member: WorkspaceMember) {
+  return shares.value.some((share) => share.userId === member.userId)
+}
+
+function toggleMember(member: WorkspaceMember) {
+  if (isIncluded(member)) {
+    shares.value = shares.value.filter((share) => share.userId !== member.userId)
+  } else {
+    shares.value.push({ userId: member.userId, participantName: member.displayName, amount: 0 })
+    defaultShares()
+  }
+}
+
+function updateMemberShare(userId: string, value: number) {
+  const share = shares.value.find((item) => item.userId === userId)
+  if (share) share.amount = value
+}
+
+function addGuest() {
+  const name = guestName.value.trim()
+  if (!name || shares.value.some((share) => !share.userId && share.participantName === name)) return
+  shares.value.push({ userId: null, participantName: name, amount: 0 })
+  guestName.value = ''
+  defaultShares()
+}
+
+function removeGuest(index: number) {
+  shares.value.splice(index, 1)
 }
 
 function defaultOccurredAt() {
@@ -96,6 +181,8 @@ async function loadExisting() {
   category.value = found.category
   note.value = found.note ?? ''
   occurredAtLocal.value = isoToLocalInput(found.occurredAt, timeZone.value)
+  paymentMode.value = found.paymentMode
+  shares.value = found.shares.map((share) => ({ ...share }))
 }
 
 async function save() {
@@ -116,6 +203,8 @@ async function save() {
     category: category.value,
     note: note.value.trim() || null,
     occurredAt: localInputToIso(occurredAtLocal.value, timeZone.value),
+    paymentMode: isFamilyExpense.value ? paymentMode.value : 'full',
+    shares: isFamilyExpense.value && paymentMode.value === 'split' ? shares.value : [],
   }
 
   try {
@@ -155,10 +244,12 @@ onMounted(async () => {
 
     if (isEditing.value) {
       await loadExisting()
+      await loadMembers()
     } else {
       category.value = visibleCategories.value[0]?.code ?? ''
       occurredAtLocal.value = defaultOccurredAt()
       selectedWorkspaceId.value = active.value?.id ?? workspaces.value[0]?.id ?? ''
+      await loadMembers()
     }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '載入失敗。'
@@ -179,7 +270,7 @@ onMounted(async () => {
     <form v-if="!isLoading" class="form" @submit.prevent="save">
       <label v-if="!isEditing" class="field">
         <span class="field__label">資料空間</span>
-        <select v-model="selectedWorkspaceId">
+        <select v-model="selectedWorkspaceId" @change="workspaceChanged">
           <option v-for="ws in workspaces" :key="ws.id" :value="ws.id">
             {{ ws.name }}（{{ ws.type === 'family' ? '家庭' : '個人' }}）
           </option>
@@ -228,6 +319,43 @@ onMounted(async () => {
           </select>
         </span>
       </label>
+
+      <section v-if="isFamilyExpense" class="split" aria-labelledby="split-title">
+        <div class="split__head">
+          <span id="split-title" class="field__label">付款方式</span>
+          <div class="split__modes">
+            <button type="button" :class="{ 'is-active': paymentMode === 'full' }" @click="selectPaymentMode('full')">全付</button>
+            <button type="button" :class="{ 'is-active': paymentMode === 'split' }" @click="selectPaymentMode('split')">分攤</button>
+          </div>
+        </div>
+
+        <template v-if="paymentMode === 'split'">
+          <p class="split__hint">預設由全部家庭成員均分；取消勾選即可排除，金額可直接調整。</p>
+          <label v-for="member in members" :key="member.userId" class="split__member">
+            <input type="checkbox" :checked="isIncluded(member)" @change="toggleMember(member)" />
+            <span>{{ member.displayName }}</span>
+            <input
+              v-if="isIncluded(member)"
+              :value="shares.find((share) => share.userId === member.userId)?.amount"
+              @input="updateMemberShare(member.userId, Number(($event.target as HTMLInputElement).value))"
+              type="number" min="0" step="0.01" inputmode="decimal" aria-label="分攤金額"
+            />
+          </label>
+          <div v-for="(share, index) in shares.filter((item) => !item.userId)" :key="`guest-${index}`" class="split__member">
+            <span>{{ share.participantName }}（臨時）</span>
+            <input v-model.number="share.amount" type="number" min="0" step="0.01" inputmode="decimal" aria-label="分攤金額" />
+            <button type="button" class="split__remove" @click="removeGuest(shares.indexOf(share))">移除</button>
+          </div>
+          <div class="split__guest">
+            <input v-model="guestName" maxlength="80" placeholder="新增臨時參與者" @keydown.enter.prevent="addGuest" />
+            <button type="button" @click="addGuest">新增</button>
+          </div>
+          <div class="split__total">
+            <span>分攤合計 {{ shares.reduce((sum, share) => sum + Number(share.amount || 0), 0) }}</span>
+            <button type="button" @click="defaultShares">重新均分</button>
+          </div>
+        </template>
+      </section>
 
       <fieldset class="categories">
         <legend class="field__label">分類</legend>
@@ -370,6 +498,30 @@ onMounted(async () => {
 .amount__currency {
   flex-shrink: 0;
 }
+
+.split {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.split__head, .split__member, .split__guest, .split__total {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.split__modes { display: flex; gap: var(--space-1); }
+.split__modes button, .split__guest button, .split__total button, .split__remove { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--color-bg); }
+.split__modes button.is-active { color: var(--color-surface); background: var(--color-accent); }
+.split__hint { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-caption); }
+.split__member input[type='number'], .split__guest input { width: 110px; min-height: 38px; padding: 0 var(--space-2); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.split__member span { flex: 1; }
+.split__guest input { flex: 1; width: auto; }
 
 .categories {
   margin: 0;

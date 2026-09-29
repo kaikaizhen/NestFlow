@@ -25,6 +25,22 @@ public class SaveAccountEntryParamModel
     /// <summary>發生時間，由前端依使用者時區換算為帶時區的時間字串後傳入。</summary>
     [Required(ErrorMessage = "請指定發生時間。")]
     public DateTimeOffset OccurredAt { get; set; }
+
+    /// <summary>家庭支出可填 split；省略或 full 代表付款人全付。</summary>
+    public string? PaymentMode { get; set; }
+
+    public List<AccountEntryShareParamModel>? Shares { get; set; }
+}
+
+public class AccountEntryShareParamModel
+{
+    public Guid? UserId { get; set; }
+
+    [StringLength(80, MinimumLength = 1, ErrorMessage = "參與者名稱長度需介於 1 至 80 字。")]
+    public string? ParticipantName { get; set; }
+
+    [Range(0, 999999999999.99, ErrorMessage = "分攤金額不可小於 0。")]
+    public decimal Amount { get; set; }
 }
 
 public class UpdateTimeZoneParamModel

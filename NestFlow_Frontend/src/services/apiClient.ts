@@ -4,8 +4,10 @@
  * 未設定時走同源，並自動帶上部署子路徑（反向代理掛在 /nestflow/ 時即為 /nestflow）。
  */
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+const basePath = import.meta.env.BASE_URL.replace(/\/+$/, '')
 
-export const apiBaseUrl = configuredApiBaseUrl || import.meta.env.BASE_URL.replace(/\/+$/, '')
+// 網站部署於根目錄時 BASE_URL 為 /；此處須轉為空字串，避免和 /api 組合成 //api。
+export const apiBaseUrl = configuredApiBaseUrl || basePath
 
 /** 後端回傳的錯誤訊息。 */
 export class ApiError extends Error {
@@ -123,6 +125,26 @@ export interface AccountEntry {
   occurredAt: string
   createdByUserId: string
   createdByDisplayName: string
+  paymentMode: 'full' | 'split'
+  isSettled: boolean
+  shares: AccountEntryShare[]
+}
+
+export interface AccountEntryShare {
+  userId: string | null
+  participantName: string
+  amount: number
+}
+
+export interface SettlementTransfer {
+  counterpartyName: string
+  currency: string
+  amount: number
+}
+
+export interface SettlementSummary {
+  toReceive: SettlementTransfer[]
+  toPay: SettlementTransfer[]
 }
 
 export interface CalendarEvent {
@@ -246,6 +268,8 @@ export interface SaveAccountEntryPayload {
   note: string | null
   /** 帶時區的 ISO 字串，後端會轉為 UTC 保存。 */
   occurredAt: string
+  paymentMode?: 'full' | 'split'
+  shares?: AccountEntryShare[]
 }
 
 // ---------------------------------------------------------------
@@ -339,6 +363,19 @@ export const api = {
     request<CurrencySummary[]>(
       `/api/account-entries/summary?workspaceId=${workspaceId}` +
         `&from=${encodeURIComponent(fromUtc)}&to=${encodeURIComponent(toUtc)}`,
+    ),
+
+  getSettlement: (workspaceId: string, fromUtc: string, toUtc: string) =>
+    request<SettlementSummary>(
+      `/api/account-entries/settlement?workspaceId=${workspaceId}` +
+        `&from=${encodeURIComponent(fromUtc)}&to=${encodeURIComponent(toUtc)}`,
+    ),
+
+  closeSettlement: (workspaceId: string, fromUtc: string, toUtc: string) =>
+    request<void>(
+      `/api/account-entries/settlement/close?workspaceId=${workspaceId}` +
+        `&from=${encodeURIComponent(fromUtc)}&to=${encodeURIComponent(toUtc)}`,
+      { method: 'POST' },
     ),
 
   getEntry: (entryId: string) => request<AccountEntry>(`/api/account-entries/${entryId}`),

@@ -83,6 +83,30 @@ public class AccountEntriesController : ControllerBase
         return Ok(_mapper.Map<List<CurrencySummaryViewModel>>(dtos));
     }
 
+    [HttpGet("settlement")]
+    public async Task<ActionResult<SettlementSummaryDtoModel>> Settlement(
+        [FromQuery] Guid workspaceId,
+        [FromQuery] DateTimeOffset from,
+        [FromQuery] DateTimeOffset to,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _entryService.GetSettlementAsync(
+            _currentUser.RequireUserId(), workspaceId, from.ToUniversalTime(), to.ToUniversalTime(), cancellationToken));
+    }
+
+    /// <summary>將此區間目前的分攤支出標記為已結清；原始帳目仍完整保留。</summary>
+    [HttpPost("settlement/close")]
+    public async Task<IActionResult> CloseSettlement(
+        [FromQuery] Guid workspaceId,
+        [FromQuery] DateTimeOffset from,
+        [FromQuery] DateTimeOffset to,
+        CancellationToken cancellationToken)
+    {
+        await _entryService.CloseSettlementAsync(
+            _currentUser.RequireUserId(), workspaceId, from.ToUniversalTime(), to.ToUniversalTime(), cancellationToken);
+        return NoContent();
+    }
+
     /// <summary>取得單筆記帳，供編輯畫面使用。</summary>
     [HttpGet("{entryId:guid}")]
     public async Task<ActionResult<AccountEntryViewModel>> Get(
@@ -144,12 +168,27 @@ public class AccountEntriesController : ControllerBase
 
         var note = string.IsNullOrWhiteSpace(param.Note) ? null : param.Note.Trim();
 
+        var paymentMode = (param.PaymentMode ?? "full").Trim().ToLowerInvariant();
+        if (paymentMode is not ("full" or "split"))
+        {
+            throw AppException.BadRequest("付款方式僅能是 full 或 split。");
+        }
+
+        var shares = (param.Shares ?? [])
+            .Select(x => new AccountEntryShareCommand(
+                x.UserId,
+                string.IsNullOrWhiteSpace(x.ParticipantName) ? null : x.ParticipantName.Trim(),
+                decimal.Round(x.Amount, 2, MidpointRounding.AwayFromZero)))
+            .ToList();
+
         return new SaveAccountEntryCommand(
             type,
             decimal.Round(param.Amount, 2, MidpointRounding.AwayFromZero),
             SupportedCurrencies.Normalize(param.Currency),
             AccountCategories.Normalize(param.Category, type),
             note,
-            param.OccurredAt.ToUniversalTime());
+            param.OccurredAt.ToUniversalTime(),
+            paymentMode,
+            shares);
     }
 }

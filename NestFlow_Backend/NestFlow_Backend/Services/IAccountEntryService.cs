@@ -37,4 +37,10 @@ public interface IAccountEntryService
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
         CancellationToken cancellationToken);
+
+    Task<SettlementSummaryDtoModel> GetSettlementAsync(
+        Guid userId, Guid workspaceId, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken);
+
+    Task CloseSettlementAsync(
+        Guid userId, Guid workspaceId, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken);
 }

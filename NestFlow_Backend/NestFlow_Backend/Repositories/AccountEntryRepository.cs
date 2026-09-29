@@ -21,7 +21,7 @@ public class AccountEntryRepository : IAccountEntryRepository
 
     public Task<AccountEntry?> GetActiveAsync(Guid id, CancellationToken cancellationToken)
     {
-        return _dbContext.AccountEntries.FirstOrDefaultAsync(
+        return _dbContext.AccountEntries.Include(x => x.Shares).FirstOrDefaultAsync(
             x => x.Id == id && x.Status == EntryStatus.Active,
             cancellationToken);
     }
@@ -35,12 +35,28 @@ public class AccountEntryRepository : IAccountEntryRepository
     {
         var query = BaseQuery(workspaceId, fromUtc, toUtc)
             .Include(x => x.User)
+            .Include(x => x.Shares)
+                .ThenInclude(x => x.User)
             .OrderByDescending(x => x.OccurredAt)
             .ThenByDescending(x => x.CreatedAt);
 
         return limit is > 0
             ? query.Take(limit.Value).ToListAsync(cancellationToken)
             : query.ToListAsync(cancellationToken);
+    }
+
+    public Task<List<AccountEntry>> ListUnsettledSharedAsync(
+        Guid workspaceId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken)
+    {
+        return BaseQuery(workspaceId, fromUtc, toUtc)
+            .Where(x => x.Type == EntryType.Expense && x.SettledAt == null && x.Shares.Any())
+            .Include(x => x.User)
+            .Include(x => x.Shares)
+                .ThenInclude(x => x.User)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<List<CurrencyTotal>> SummarizeAsync(

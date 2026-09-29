@@ -548,7 +548,9 @@ public class LineWebhookService : ILineWebhookService
                 payload.Currency,
                 payload.Category,
                 payload.Note,
-                payload.OccurredAt),
+                payload.OccurredAt,
+                "full",
+                []),
             cancellationToken);
 
         pending.Status = PendingActionStatus.Confirmed;

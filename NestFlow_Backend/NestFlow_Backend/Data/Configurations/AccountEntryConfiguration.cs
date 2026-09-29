@@ -24,6 +24,8 @@ public class AccountEntryConfiguration : IEntityTypeConfiguration<AccountEntry>
         builder.Property(x => x.OccurredAt).HasColumnName("occurred_at").IsRequired();
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
+        builder.Property(x => x.SettledAt).HasColumnName("settled_at");
+        builder.Property(x => x.SettledByUserId).HasColumnName("settled_by_user_id");
 
         // 依 Workspace 取區間資料是最主要的查詢方式
         builder.HasIndex(x => new { x.WorkspaceId, x.Status, x.OccurredAt })
@@ -37,6 +39,11 @@ public class AccountEntryConfiguration : IEntityTypeConfiguration<AccountEntry>
         builder.HasOne(x => x.User)
             .WithMany()
             .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.SettledByUserId)
             .OnDelete(DeleteBehavior.NoAction);
     }
 }

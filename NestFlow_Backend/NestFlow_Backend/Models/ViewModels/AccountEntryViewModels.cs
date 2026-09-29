@@ -19,6 +19,19 @@ public class AccountEntryViewModel
     public Guid CreatedByUserId { get; set; }
 
     public string CreatedByDisplayName { get; set; } = string.Empty;
+
+    public string PaymentMode { get; set; } = "full";
+
+    public bool IsSettled { get; set; }
+
+    public List<AccountEntryShareViewModel> Shares { get; set; } = [];
+}
+
+public class AccountEntryShareViewModel
+{
+    public Guid? UserId { get; set; }
+    public string ParticipantName { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
 }
 
 public class CurrencySummaryViewModel

@@ -21,6 +21,19 @@ public class AccountEntryDtoModel
     public Guid CreatedByUserId { get; set; }
 
     public string CreatedByDisplayName { get; set; } = string.Empty;
+
+    public string PaymentMode { get; set; } = "full";
+
+    public bool IsSettled { get; set; }
+
+    public List<AccountEntryShareDtoModel> Shares { get; set; } = [];
+}
+
+public class AccountEntryShareDtoModel
+{
+    public Guid? UserId { get; set; }
+    public string ParticipantName { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
 }
 
 /// <summary>單一幣別的月度統計。</summary>
@@ -42,4 +55,21 @@ public record SaveAccountEntryCommand(
     string Currency,
     string Category,
     string? Note,
-    DateTimeOffset OccurredAtUtc);
+    DateTimeOffset OccurredAtUtc,
+    string PaymentMode,
+    List<AccountEntryShareCommand> Shares);
+
+public record AccountEntryShareCommand(Guid? UserId, string? ParticipantName, decimal Amount);
+
+public class SettlementSummaryDtoModel
+{
+    public List<SettlementTransferDtoModel> ToReceive { get; set; } = [];
+    public List<SettlementTransferDtoModel> ToPay { get; set; } = [];
+}
+
+public class SettlementTransferDtoModel
+{
+    public string CounterpartyName { get; set; } = string.Empty;
+    public string Currency { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+}

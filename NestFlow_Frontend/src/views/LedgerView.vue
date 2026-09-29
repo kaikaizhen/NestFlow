@@ -10,6 +10,7 @@ import {
   type AccountEntry,
   type Category,
   type CurrencySummary,
+  type SettlementSummary,
 } from '../services/apiClient'
 import { useAuth } from '../stores/auth'
 import { useWorkspaces } from '../stores/workspace'
@@ -27,6 +28,7 @@ const month = ref(today.month)
 
 const entries = ref<AccountEntry[]>([])
 const summaries = ref<CurrencySummary[]>([])
+const settlement = ref<SettlementSummary>({ toReceive: [], toPay: [] })
 const categories = ref<Category[]>([])
 const isLoading = ref(true)
 const errorMessage = ref('')
@@ -65,17 +67,32 @@ async function load() {
   const { fromUtc, toUtc } = monthRangeUtc(year.value, month.value, timeZone.value)
 
   try {
-    const [entryList, summaryList] = await Promise.all([
+    const [entryList, summaryList, settlementResult] = await Promise.all([
       api.listEntries(active.value.id, fromUtc, toUtc, 20),
       api.summarize(active.value.id, fromUtc, toUtc),
+      isFamilyWorkspace.value
+        ? api.getSettlement(active.value.id, fromUtc, toUtc)
+        : Promise.resolve({ toReceive: [], toPay: [] }),
     ])
 
     entries.value = entryList
     summaries.value = summaryList
+    settlement.value = settlementResult
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '載入失敗。'
   } finally {
     isLoading.value = false
+  }
+}
+
+async function closeSettlement() {
+  if (!active.value || !window.confirm('確認已依照以上金額完成收付款，並將本月分攤標記為已結清？')) return
+  const { fromUtc, toUtc } = monthRangeUtc(year.value, month.value, timeZone.value)
+  try {
+    await api.closeSettlement(active.value.id, fromUtc, toUtc)
+    await load()
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '結清失敗，請稍後再試。'
   }
 }
 
@@ -132,6 +149,29 @@ useAutoRefresh(load)
     <AppMessage :text="errorMessage" tone="error" />
 
     <SummaryCard :summaries="summaries" />
+
+    <section v-if="isFamilyWorkspace" class="settlement">
+      <div class="settlement__head">
+        <h2>本月分攤結算</h2>
+        <button
+          v-if="settlement.toReceive.length || settlement.toPay.length"
+          type="button"
+          @click="closeSettlement"
+        >標記已結清</button>
+      </div>
+      <p v-if="!settlement.toReceive.length && !settlement.toPay.length" class="settlement__empty">目前沒有未結清的分攤款項。</p>
+      <template v-else>
+        <div v-if="settlement.toReceive.length" class="settlement__group receive">
+          <strong>我應收</strong>
+          <p v-for="item in settlement.toReceive" :key="`receive-${item.counterpartyName}-${item.currency}`">{{ item.counterpartyName }} 應付我 {{ item.currency }} {{ item.amount }}</p>
+        </div>
+        <div v-if="settlement.toPay.length" class="settlement__group pay">
+          <strong>我應付</strong>
+          <p v-for="item in settlement.toPay" :key="`pay-${item.counterpartyName}-${item.currency}`">我應付 {{ item.counterpartyName }} {{ item.currency }} {{ item.amount }}</p>
+        </div>
+      </template>
+      <p class="settlement__note">已先抵銷彼此款項，轉帳金額採四捨五入。</p>
+    </section>
 
     <div class="ledger__section-head">
       <h2 class="ledger__section-title">最近交易</h2>
@@ -235,6 +275,24 @@ useAutoRefresh(load)
   justify-content: space-between;
   margin-top: var(--space-1);
 }
+
+.settlement {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.settlement__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.settlement__head h2 { margin: 0; font-size: var(--font-size-body); }
+.settlement__head button { padding: var(--space-2) var(--space-3); color: var(--color-surface); background: var(--color-accent); border-radius: var(--radius-sm); }
+.settlement__group { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); }
+.settlement__group p, .settlement__empty, .settlement__note { margin: var(--space-1) 0; font-size: var(--font-size-caption); }
+.receive { background: color-mix(in srgb, var(--color-income) 12%, var(--color-surface)); }
+.pay { background: color-mix(in srgb, var(--color-expense) 10%, var(--color-surface)); }
+.settlement__note, .settlement__empty { color: var(--color-text-muted); }
 
 .ledger__section-title {
   margin: 0;

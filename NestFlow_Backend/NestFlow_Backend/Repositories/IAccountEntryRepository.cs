@@ -24,6 +24,12 @@ public interface IAccountEntryRepository
         int? limit,
         CancellationToken cancellationToken);
 
+    Task<List<AccountEntry>> ListUnsettledSharedAsync(
+        Guid workspaceId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken);
+
     /// <summary>依幣別加總區間內的收入與支出。</summary>
     Task<List<CurrencyTotal>> SummarizeAsync(
         Guid workspaceId,
