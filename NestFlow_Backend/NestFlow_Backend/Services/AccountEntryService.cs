@@ -17,6 +17,7 @@ public class AccountEntryService : IAccountEntryService
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<AccountEntryService> _logger;
 
     public AccountEntryService(
         IAccountEntryRepository entryRepository,
@@ -24,7 +25,8 @@ public class AccountEntryService : IAccountEntryService
         IWorkspaceRepository workspaceRepository,
         IUserRepository userRepository,
         IUnitOfWork unitOfWork,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger<AccountEntryService> logger)
     {
         _entryRepository = entryRepository;
         _workspaceService = workspaceService;
@@ -32,6 +34,7 @@ public class AccountEntryService : IAccountEntryService
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
         _timeProvider = timeProvider;
+        _logger = logger;
     }
 
     public async Task<AccountEntryDtoModel> GetAsync(
@@ -104,19 +107,20 @@ public class AccountEntryService : IAccountEntryService
         entry.Category = command.Category;
         entry.Note = command.Note;
         entry.OccurredAt = command.OccurredAtUtc;
-        entry.Shares.Clear();
         var shares = await ValidateAndBuildSharesAsync(userId, workspaceId, command, cancellationToken);
-        foreach (var share in shares)
-        {
-            entry.Shares.Add(share);
-        }
+        SynchronizeShares(entry, shares);
 
         try
         {
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateConcurrencyException)
+        catch (DbUpdateConcurrencyException ex)
         {
+            _logger.LogWarning(
+                ex,
+                "記帳更新發生併發衝突。EntryId={EntryId}; EntityTypes={EntityTypes}",
+                entryId,
+                string.Join(",", ex.Entries.Select(x => x.Metadata.ClrType.Name).Distinct()));
             throw AppException.Conflict("這筆記帳資料已被其他人修改或刪除，請重新整理後再試。");
         }
 
@@ -314,6 +318,41 @@ public class AccountEntryService : IAccountEntryService
             Amount = x.Amount,
         }).ToList(),
     };
+
+    /// <summary>
+    /// 只異動實際變更的分攤資料。避免每次編輯主帳目都刪除並重建所有
+    /// share；後者在 MariaDB 的 affected-row 語意下容易被誤判為併發衝突。
+    /// </summary>
+    private static void SynchronizeShares(AccountEntry entry, IReadOnlyCollection<AccountEntryShare> desiredShares)
+    {
+        var existingByKey = entry.Shares.ToDictionary(GetShareKey, StringComparer.OrdinalIgnoreCase);
+        var desiredKeys = desiredShares.Select(GetShareKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var existing in entry.Shares.Where(x => !desiredKeys.Contains(GetShareKey(x))).ToList())
+        {
+            entry.Shares.Remove(existing);
+        }
+
+        foreach (var desired in desiredShares)
+        {
+            var key = GetShareKey(desired);
+            if (existingByKey.TryGetValue(key, out var existing))
+            {
+                existing.UserId = desired.UserId;
+                existing.ParticipantName = desired.ParticipantName;
+                existing.Amount = desired.Amount;
+            }
+            else
+            {
+                entry.Shares.Add(desired);
+            }
+        }
+    }
+
+    private static string GetShareKey(AccountEntryShare share) =>
+        share.UserId is { } userId
+            ? $"user:{userId:N}"
+            : $"guest:{share.ParticipantName.Trim()}";
 
     private async Task<List<AccountEntryShare>> ValidateAndBuildSharesAsync(
         Guid userId, Guid workspaceId, SaveAccountEntryCommand command, CancellationToken cancellationToken)

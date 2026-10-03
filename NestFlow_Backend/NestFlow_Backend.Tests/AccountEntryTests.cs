@@ -123,6 +123,45 @@ public class AccountEntryTests : IClassFixture<NestFlowApiFactory>
     }
 
     [Fact]
+    public async Task 修改家庭分攤記帳_不應刪除並重建未變更的分攤()
+    {
+        var (client, _) = await CreateUserWithWorkspaceAsync("分攤修改者");
+        var familyId = await client.CreateWorkspaceAsync("出遊", "family");
+
+        var createResponse = await client.PostAsJsonAsync("/api/account-entries", new
+        {
+            workspaceId = familyId,
+            type = "expense",
+            amount = 120,
+            currency = "TWD",
+            category = "food",
+            note = "晚餐",
+            occurredAt = InMonth,
+            paymentMode = "split",
+            shares = new[] { new { userId = (Guid?)null, participantName = "同行朋友", amount = 120 } },
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<EntryResponse>();
+
+        var updateResponse = await client.PutAsJsonAsync($"/api/account-entries/{created!.Id}", new
+        {
+            workspaceId = familyId,
+            type = "expense",
+            amount = 120,
+            currency = "TWD",
+            category = "food",
+            note = "晚餐（已更新）",
+            occurredAt = InMonth,
+            paymentMode = "split",
+            shares = new[] { new { userId = (Guid?)null, participantName = "同行朋友", amount = 120 } },
+        });
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        var updated = await updateResponse.Content.ReadFromJsonAsync<EntryResponse>();
+        Assert.Equal("晚餐（已更新）", updated!.Note);
+    }
+
+    [Fact]
     public async Task 軟刪除後_不應出現在列表與統計()
     {
         var (client, workspaceId) = await CreateUserWithWorkspaceAsync("刪除者");
