@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -138,23 +137,7 @@ builder.Services.AddHealthChecks()
 builder.Services.AddLibraryExceptionHandling(builder.Configuration);
 builder.Services
     .AddControllers()
-    .ConfigureApiBehaviorOptions(options =>
-    {
-        options.InvalidModelStateResponseFactory = context =>
-        {
-            var problem = new ValidationProblemDetails(context.ModelState)
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "驗證失敗",
-                Detail = "請檢查輸入欄位。",
-                Instance = $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}"
-            };
-
-            var result = new BadRequestObjectResult(problem);
-            result.ContentTypes.Add("application/problem+json");
-            return result;
-        };
-    });
+    .AddLibraryApiValidation();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
