@@ -48,8 +48,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 async function readErrorMessage(response: Response): Promise<string> {
   try {
-    const body = await response.json()
-    return body?.message ?? body?.title ?? '操作失敗，請稍後再試。'
+    const body = await response.json() as {
+      message?: string
+      detail?: string
+      title?: string
+      errors?: Record<string, string[]>
+    }
+    const firstValidationError = body.errors
+      ? Object.values(body.errors).flat().find(Boolean)
+      : undefined
+
+    return body.message ?? body.detail ?? firstValidationError ?? body.title ?? '操作失敗，請稍後再試。'
   } catch {
     return '操作失敗，請稍後再試。'
   }

@@ -1,10 +1,12 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Library.Extensions;
 using Library.Logging;
 using Library.Observability;
 using NestFlow_Backend.Common;
@@ -131,7 +133,28 @@ builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: [GlobalConstants.LiveTag])
     .AddDbContextCheck<NestFlowDbContext>("database", tags: [GlobalConstants.ReadyTag]);
 
-builder.Services.AddControllers();
+// Library 統一處理例外並輸出 RFC 9457 Problem Details。輸入模型驗證同樣
+// 使用 Problem Details，讓 PWA 只需依同一個格式讀取錯誤。
+builder.Services.AddLibraryExceptionHandling(builder.Configuration);
+builder.Services
+    .AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problem = new ValidationProblemDetails(context.ModelState)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "驗證失敗",
+                Detail = "請檢查輸入欄位。",
+                Instance = $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}"
+            };
+
+            var result = new BadRequestObjectResult(problem);
+            result.ContentTypes.Add("application/problem+json");
+            return result;
+        };
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -167,7 +190,7 @@ if (builder.Configuration.GetValue("ASPNETCORE_FORWARDEDHEADERS_ENABLED", false)
     app.UseForwardedHeaders(forwardedHeadersOptions);
 }
 
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseLibraryExceptionHandling();
 app.UseCors(PwaCorsPolicy);
 app.UseMiddleware<SessionAuthenticationMiddleware>();
 app.UseAuthorization();

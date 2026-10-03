@@ -1,17 +1,19 @@
+using Library.Http;
+
 namespace NestFlow_Backend.Common;
 
 /// <summary>
 /// 商業規則違反時拋出，由全域例外處理轉為對應的 HTTP 狀態碼。
 /// </summary>
-public class AppException : Exception
+public class AppException : HttpException
 {
     public AppException(int statusCode, string message)
-        : base(message)
+        : base((System.Net.HttpStatusCode)statusCode, message)
     {
-        StatusCode = statusCode;
     }
 
-    public int StatusCode { get; }
+    /// <summary>保留既有服務與測試使用的數字型態狀態碼。</summary>
+    public new int StatusCode => (int)base.StatusCode;
 
     public static AppException BadRequest(string message) => new(StatusCodes.Status400BadRequest, message);
 

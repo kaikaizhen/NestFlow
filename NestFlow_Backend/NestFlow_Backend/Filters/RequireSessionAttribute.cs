@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using NestFlow_Backend.Common;
 
@@ -16,10 +15,9 @@ public class RequireSessionAttribute : Attribute, IAuthorizationFilter
 
         if (accessor.UserId is null)
         {
-            context.Result = new ObjectResult(new { message = "尚未登入。" })
-            {
-                StatusCode = StatusCodes.Status401Unauthorized,
-            };
+            // 交由 Library 的全域例外處理輸出 RFC 9457 Problem Details，
+            // 避免授權失敗與商業規則錯誤有不同的回應格式。
+            throw AppException.Unauthorized();
         }
     }
 }
