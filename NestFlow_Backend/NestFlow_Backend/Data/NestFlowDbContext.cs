@@ -51,7 +51,46 @@ public class NestFlowDbContext : DbContext
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(NestFlowDbContext).Assembly);
 
+        ApplyMySqlWorkarounds(modelBuilder);
         ApplySqliteDateTimeOffsetWorkaround(modelBuilder);
+    }
+
+    private void ApplyMySqlWorkarounds(ModelBuilder modelBuilder)
+    {
+        if (Database.ProviderName?.Contains("MySql", StringComparison.OrdinalIgnoreCase) != true)
+        {
+            return;
+        }
+
+        // MariaDB 沒有 SQL Server 的 filtered index；保留唯一索引，由應用程式
+        // 及資料表狀態規則維持提醒的有效性。
+        modelBuilder.Entity<Reminder>()
+            .HasIndex(x => x.CalendarEventId)
+            .HasFilter(null);
+
+        // MySQL/MariaDB 沒有帶 offset 的 datetime。所有時間一律以 UTC 寫入，
+        // 讀取時再標示為 UTC，與既有服務的時間規則一致。
+        var converter = new ValueConverter<DateTimeOffset, DateTime>(
+            value => value.UtcDateTime,
+            value => new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)));
+        var nullableConverter = new ValueConverter<DateTimeOffset?, DateTime?>(
+            value => value == null ? null : value.Value.UtcDateTime,
+            value => value == null ? null : new DateTimeOffset(DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)));
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTimeOffset))
+                {
+                    property.SetValueConverter(converter);
+                }
+                else if (property.ClrType == typeof(DateTimeOffset?))
+                {
+                    property.SetValueConverter(nullableConverter);
+                }
+            }
+        }
     }
 
     /// <summary>

@@ -40,9 +40,10 @@ builder.Services.Configure<NestFlow_Backend.Common.SessionOptions>(
 // 資料存取
 // ---------------------------------------------------------------
 builder.Services.AddDbContext<NestFlowDbContext>(options =>
-    options.UseSqlServer(
+    options.UseMySql(
         builder.Configuration.GetConnectionString("NestFlowDb"),
-        sql => sql.EnableRetryOnFailure()));
+        new MariaDbServerVersion(new Version(10, 11, 8)),
+        mysql => mysql.EnableRetryOnFailure()));
 
 // ---------------------------------------------------------------
 // 共用服務
@@ -182,7 +183,14 @@ static async Task MigrateDatabaseAsync(WebApplication app)
     try
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<NestFlowDbContext>();
-        await dbContext.Database.MigrateAsync();
+        if (dbContext.Database.IsMySql())
+        {
+            await dbContext.Database.EnsureCreatedAsync();
+        }
+        else
+        {
+            await dbContext.Database.MigrateAsync();
+        }
     }
     catch (Exception ex)
     {

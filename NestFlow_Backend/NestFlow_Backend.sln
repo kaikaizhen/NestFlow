@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NestFlow_Worker", "NestFlow
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NestFlow_Backend.Tests", "NestFlow_Backend.Tests\NestFlow_Backend.Tests.csproj", "{2CEDD5EF-3BC3-498B-855F-DC4FAB3005EC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NestFlow_DatabaseMigration", "NestFlow_DatabaseMigration\NestFlow_DatabaseMigration.csproj", "{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{2CEDD5EF-3BC3-498B-855F-DC4FAB3005EC}.Release|x64.Build.0 = Release|Any CPU
 		{2CEDD5EF-3BC3-498B-855F-DC4FAB3005EC}.Release|x86.ActiveCfg = Release|Any CPU
 		{2CEDD5EF-3BC3-498B-855F-DC4FAB3005EC}.Release|x86.Build.0 = Release|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Debug|x64.Build.0 = Debug|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Debug|x86.Build.0 = Debug|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Release|x64.ActiveCfg = Release|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Release|x64.Build.0 = Release|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Release|x86.ActiveCfg = Release|Any CPU
+		{7283A86F-FB22-46C8-926C-BD7BFDDBDFBE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

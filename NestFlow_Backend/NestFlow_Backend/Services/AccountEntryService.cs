@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using NestFlow_Backend.Common;
 using NestFlow_Backend.Models.Dtos;
 using NestFlow_Backend.Models.Entities;
@@ -110,7 +111,14 @@ public class AccountEntryService : IAccountEntryService
             entry.Shares.Add(share);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw AppException.Conflict("這筆記帳資料已被其他人修改或刪除，請重新整理後再試。");
+        }
 
         var owner = await _userRepository.GetByIdAsync(entry.UserId, cancellationToken);
         return ToDto(entry, owner?.DisplayName ?? string.Empty);

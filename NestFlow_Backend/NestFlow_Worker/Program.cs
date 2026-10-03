@@ -25,9 +25,10 @@ builder.Services.Configure<LineMessagingOptions>(
 // 資料存取與提醒派送所需的服務
 // ---------------------------------------------------------------
 builder.Services.AddDbContext<NestFlowDbContext>(options =>
-    options.UseSqlServer(
+    options.UseMySql(
         builder.Configuration.GetConnectionString("NestFlowDb"),
-        sql => sql.EnableRetryOnFailure()));
+        new MariaDbServerVersion(new Version(10, 11, 8)),
+        mysql => mysql.EnableRetryOnFailure()));
 
 builder.Services.AddSingleton<ICryptoHelper, CryptoHelper>();
 builder.Services.AddSingleton(TimeProvider.System);
