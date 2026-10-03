@@ -10,12 +10,12 @@ public class CalendarEventTests : IClassFixture<NestFlowApiFactory>
     private readonly NestFlowApiFactory _factory;
 
     /// <summary>測試用的月份區間，模擬前端以 Asia/Taipei 換算後的 UTC 起訖。</summary>
-    private static readonly DateTimeOffset MonthFrom = new(2026, 7, 31, 16, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset MonthTo = new(2026, 8, 31, 16, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset MonthFrom = new(2035, 7, 31, 16, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset MonthTo = new(2035, 8, 31, 16, 0, 0, TimeSpan.Zero);
 
     /// <summary>台灣時間 2026/8/10 12:00 ~ 13:00。</summary>
-    private static readonly DateTimeOffset Start = new(2026, 8, 10, 4, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset End = new(2026, 8, 10, 5, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2035, 8, 10, 4, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset End = new(2035, 8, 10, 5, 0, 0, TimeSpan.Zero);
 
     public CalendarEventTests(NestFlowApiFactory factory)
     {
@@ -93,8 +93,8 @@ public class CalendarEventTests : IClassFixture<NestFlowApiFactory>
             workspaceId,
             "下個月的行程",
             null,
-            new DateTimeOffset(2026, 9, 1, 2, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 9, 1, 3, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(2035, 9, 1, 2, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2035, 9, 1, 3, 0, 0, TimeSpan.Zero));
 
         await CreateEventAsync(client, workspaceId, "這個月的行程", null);
 
@@ -114,15 +114,15 @@ public class CalendarEventTests : IClassFixture<NestFlowApiFactory>
             workspaceId,
             "跨月出差",
             null,
-            new DateTimeOffset(2026, 8, 31, 12, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 9, 1, 2, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(2035, 8, 31, 12, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2035, 9, 1, 2, 0, 0, TimeSpan.Zero));
 
         var august = await ListAsync(client, workspaceId);
         var september = await ListAsync(
             client,
             workspaceId,
             MonthTo,
-            new DateTimeOffset(2026, 9, 30, 16, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(2035, 9, 30, 16, 0, 0, TimeSpan.Zero));
 
         Assert.Equal("跨月出差", Assert.Single(august).Title);
         Assert.Equal("跨月出差", Assert.Single(september).Title);

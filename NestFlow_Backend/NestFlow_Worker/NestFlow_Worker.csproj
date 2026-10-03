@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-NestFlow_Worker-d4b93497-7a5c-4caf-b345-6b31dac5b4b6</UserSecretsId>
@@ -14,6 +14,8 @@
   <ItemGroup>
     <!-- 共用實體、DbContext 與 LINE 用戶端，避免提醒邏輯出現第二份實作 -->
     <ProjectReference Include="..\NestFlow_Backend\NestFlow_Backend.csproj" />
+    <ProjectReference Include="..\Library\src\Library.Logging\Library.Logging.csproj" />
+    <ProjectReference Include="..\Library\src\Library.Observability\Library.Observability.csproj" />
   </ItemGroup>
 
   <!--

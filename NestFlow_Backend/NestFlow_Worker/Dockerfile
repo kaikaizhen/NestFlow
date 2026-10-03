@@ -1,11 +1,16 @@
 # Worker 參考了 Web SDK 的 NestFlow_Backend，執行時需要 ASP.NET Core 共用框架
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 USER $APP_UID
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+COPY ["Library/Directory.Build.props", "Library/"]
+COPY ["Library/Directory.Packages.props", "Library/"]
+COPY ["Library/src/Library.Abstractions/Library.Abstractions.csproj", "Library/src/Library.Abstractions/"]
+COPY ["Library/src/Library.Logging/Library.Logging.csproj", "Library/src/Library.Logging/"]
+COPY ["Library/src/Library.Observability/Library.Observability.csproj", "Library/src/Library.Observability/"]
 COPY ["NestFlow_Worker/NestFlow_Worker.csproj", "NestFlow_Worker/"]
 COPY ["NestFlow_Backend/NestFlow_Backend.csproj", "NestFlow_Backend/"]
 RUN dotnet restore "./NestFlow_Worker/NestFlow_Worker.csproj"

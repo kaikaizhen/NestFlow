@@ -5,6 +5,8 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Library.Logging;
+using Library.Observability;
 using NestFlow_Backend.Common;
 using NestFlow_Backend.Data;
 using NestFlow_Backend.Helpers;
@@ -12,8 +14,14 @@ using NestFlow_Backend.Middlewares;
 using NestFlow_Backend.Repositories;
 using NestFlow_Backend.Services;
 using NestFlow_Backend.Services.External;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// 統一由 Library 建立 OpenTelemetry 與 Serilog 管線。未設定 OTLP endpoint
+// 時仍保留本機診斷與 console log；日後接入 Alloy/Grafana 時只需提供設定。
+builder.AddLibraryObservability();
+builder.AddLibrarySerilog();
 
 // ---------------------------------------------------------------
 // 設定綁定（機密值只存在 appsettings.Development.json 或環境變數）
@@ -128,6 +136,11 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue<bool?>("Library:Logging:UseRequestLogging") ?? true)
+{
+    app.UseSerilogRequestLogging();
+}
 
 if (app.Environment.IsDevelopment())
 {

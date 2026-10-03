@@ -1,7 +1,7 @@
 # 請參閱 https://aka.ms/customizecontainer 了解如何自訂您的偵錯容器，以及 Visual Studio 如何使用此 Dockerfile 來組建您的映像，以加快偵錯速度。
 
 # 此階段用於以快速模式從 VS 執行時 (偵錯設定的預設值)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 # 安裝 curl 供容器 Health Check 呼叫 /health/live 使用
 USER root
 RUN apt-get update \
@@ -14,9 +14,14 @@ EXPOSE 8081
 
 
 # 此階段是用來組建服務專案
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+COPY ["Library/Directory.Build.props", "Library/"]
+COPY ["Library/Directory.Packages.props", "Library/"]
+COPY ["Library/src/Library.Abstractions/Library.Abstractions.csproj", "Library/src/Library.Abstractions/"]
+COPY ["Library/src/Library.Logging/Library.Logging.csproj", "Library/src/Library.Logging/"]
+COPY ["Library/src/Library.Observability/Library.Observability.csproj", "Library/src/Library.Observability/"]
 COPY ["NestFlow_Backend/NestFlow_Backend.csproj", "NestFlow_Backend/"]
 RUN dotnet restore "./NestFlow_Backend/NestFlow_Backend.csproj"
 COPY . .

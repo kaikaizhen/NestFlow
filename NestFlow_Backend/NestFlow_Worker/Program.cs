@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Library.Logging;
+using Library.Observability;
 using NestFlow_Backend.Common;
 using NestFlow_Backend.Data;
 using NestFlow_Backend.Helpers;
@@ -8,6 +10,10 @@ using NestFlow_Backend.Services.External;
 using NestFlow_Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+// 與 HTTP API 使用相同的 telemetry resource 與 structured logging 管線。
+builder.AddLibraryObservability();
+builder.AddLibrarySerilog();
 
 // ---------------------------------------------------------------
 // 設定綁定。機密值一律由環境變數注入，與 API 使用相同的鍵名。

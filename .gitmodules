@@ -1,0 +1,4 @@
+[submodule "NestFlow_Backend/Library"]
+	path = NestFlow_Backend/Library
+	url = https://github.com/kaikaizhen/Library.git
+	branch = feature/v3-result-resilience-idempotency
