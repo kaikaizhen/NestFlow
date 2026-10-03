@@ -190,8 +190,9 @@ public class AuthController : ControllerBase
         {
             plain = _cryptoHelper.Decrypt(cookieValue);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "LINE 登入 state Cookie 解密失敗。");
             throw AppException.Unauthorized("登入驗證失敗，請重新登入。");
         }
 

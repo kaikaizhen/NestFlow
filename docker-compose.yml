@@ -51,6 +51,11 @@ services:
       # Dify Workflow：固定格式解析不出結果時的自然語言後援，未設定時直接回覆既有用法提示
       Dify__BaseUrl: ${DIFY_BASE_URL:-}
       Dify__AppKey: ${DIFY_APP_KEY:-}
+      # Observability：trace 以 OTLP HTTP 送往 Tempo；log 只寫 stdout，由 Docker + Alloy 送入 Loki，
+      # 應用程式不連 Loki。ENABLE_OPEN_TELEMETRY / OTEL_* 由 .env 注入，endpoint 留空則不建立 exporter。
+      Library__Observability__Enabled: ${ENABLE_OPEN_TELEMETRY:-true}
+      Library__Observability__OtlpEndpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      Library__Observability__ServiceName: ${OTEL_SERVICE_NAME:-nestflow-api}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
@@ -76,6 +81,11 @@ services:
       LineMessaging__ChannelId: ${LINE_MESSAGING_CHANNEL_ID:-}
       LineMessaging__ChannelSecret: ${LINE_MESSAGING_CHANNEL_SECRET:-}
       LineMessaging__ChannelAccessToken: ${LINE_MESSAGING_ACCESS_TOKEN:-}
+      # Observability：trace 以 OTLP HTTP 送往 Tempo；log 只寫 stdout，由 Docker + Alloy 送入 Loki，
+      # 應用程式不連 Loki。ENABLE_OPEN_TELEMETRY / OTEL_* 由 .env 注入，endpoint 留空則不建立 exporter。
+      Library__Observability__Enabled: ${ENABLE_OPEN_TELEMETRY:-true}
+      Library__Observability__OtlpEndpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      Library__Observability__ServiceName: ${OTEL_WORKER_SERVICE_NAME:-nestflow-worker}
     depends_on:
       sqlserver:
         condition: service_healthy

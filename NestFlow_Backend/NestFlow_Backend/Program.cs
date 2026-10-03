@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -138,6 +139,28 @@ builder.Services.AddLibraryExceptionHandling(builder.Configuration);
 builder.Services
     .AddControllers()
     .AddLibraryApiValidation();
+
+// 驗證失敗回應仍由 Library 產生；這裡只在其前面補上 ILogger 警告，讓 Grafana 查得到。
+// 只記錄欄位名稱，不記錄使用者輸入值，避免洩漏機密。
+builder.Services.PostConfigure<ApiBehaviorOptions>(options =>
+{
+    var libraryFactory = options.InvalidModelStateResponseFactory;
+
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var logger = context.HttpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("NestFlow_Backend.ApiValidation");
+
+        logger.LogWarning(
+            "請求 {Method} {Path} 驗證失敗，欄位：{Fields}。",
+            context.HttpContext.Request.Method,
+            context.HttpContext.Request.Path,
+            string.Join(", ", context.ModelState.Where(e => e.Value?.Errors.Count > 0).Select(e => e.Key)));
+
+        return libraryFactory(context);
+    };
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

@@ -362,8 +362,9 @@ public class LineWebhookService : ILineWebhookService
         {
             await _workspaceService.EnsureMemberAsync(user.Id, workspaceId, cancellationToken);
         }
-        catch (AppException)
+        catch (AppException ex)
         {
+            _logger.LogWarning(ex, "使用者 {UserId} 的預設資料空間 {WorkspaceId} 已無法存取。", user.Id, workspaceId);
             return (null, string.Empty, "預設資料空間已無法存取，請到 NestFlow 重新設定。");
         }
 
